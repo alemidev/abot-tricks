@@ -23,8 +23,9 @@ from pydub import AudioSegment
 import speech_recognition as sr
 
 from util import batchify
+from util.text import tokenize_json
 from util.permission import is_allowed
-from util.message import edit_or_reply, tokenize_json
+from util.message import edit_or_reply
 from util.command import filterCommand
 from util.decorators import report_error, set_offline
 from util.help import HelpCategory
