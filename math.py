@@ -21,6 +21,7 @@ from sympy import preview, plot
 import logging
 logger = logging.getLogger(__name__)
 
+# This is maybe should be in the statistics module? I dunno, lmk if it fits in tricks
 HELP = HelpCategory("MATH")
 
 HELP.add_help(["expr", "math"], "convert to LaTeX formula",

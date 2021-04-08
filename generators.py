@@ -19,7 +19,7 @@ from bot import alemiBot
 from util.permission import is_allowed
 from util.message import edit_or_reply, is_me
 from util.getters import get_text
-from util.text import tokenize_json
+from util.text import tokenize_json, cleartermcolor
 from util.command import filterCommand
 from util.decorators import report_error, set_offline
 from util.help import HelpCategory
@@ -27,6 +27,7 @@ from util.help import HelpCategory
 from PIL import Image
 import qrcode
 import pyfiglet
+from geopy.geocoders import Nominatim
 
 import logging
 logger = logging.getLogger(__name__)
@@ -35,6 +36,8 @@ recognizer = sr.Recognizer()
 
 FIGLET_FONTS = pyfiglet.FigletFont.getFonts()
 FIGLET_FONTS.sort()
+
+geolocator = Nominatim(user_agent="telegram-client")
 
 HELP = HelpCategory("GENERATORS")
 
@@ -67,13 +70,13 @@ async def rand_cmd(client, message):
 		
 	if maxval is not None:
 		logger.info(f"Rolling d{maxval}")
-		for i in range(times):
+		for _ in range(times):
 			res.append(secrets.randbelow(maxval) + 1)
 		if times > 1:
 			out += f"`→ Rolled {times}d{maxval}` : **{sum(res)}**\n"
 	elif "cmd" in args:
 		logger.info(f"Rolling {args['cmd']}")
-		for i in range(times):
+		for _ in range(times):
 			res.append(secrets.choice(args['cmd']))
 		if times > 1: # This is kinda ugly but pretty handy
 			res_count = Counter(res).most_common()
@@ -86,7 +89,7 @@ async def rand_cmd(client, message):
 			out += "**\n"
 	else:
 		logger.info(f"Rolling binary")
-		for i in range(times):
+		for _ in range(times):
 			res.append(secrets.randbelow(2))
 		if times > 1:
 			out += "`→ Binary " + "".join(str(x) for x in res) + "`\n"
@@ -302,13 +305,61 @@ async def fortune_cmd(client, message):
 				"fortune | cowsay -W 30",
 				stdout=asyncio.subprocess.PIPE,
 				stderr=asyncio.subprocess.STDOUT)
-		stdout, stderr = await proc.communicate()
+		stdout, _stderr = await proc.communicate()
 		stdout = b"\n" + stdout
 	else:
 		proc = await asyncio.create_subprocess_exec(
 				"fortune",
 				stdout=asyncio.subprocess.PIPE,
 				stderr=asyncio.subprocess.STDOUT)
-		stdout, stderr = await proc.communicate()
+		stdout, _stderr = await proc.communicate()
 	output = cleartermcolor(stdout.decode())
 	await edit_or_reply(message, "``` → " + output + "```")
+
+# This doesn't really fit here, will be moved into statistics plugin once I'm done with a proper statistics plugin
+HELP.add_help(["freq", "frequent"], "find frequent words in messages",
+				"find most used words in last messages. If no number is given, will search only " +
+				"last 100 messages. By default, 10 most frequent words are shown, but number of results " +
+				"can be changed with `-r`. By default, only words of `len > 3` will be considered. " +
+				"A minimum word len can be specified with `-min`. Will search in current group or any specified with `-g`. " +
+				"A single user can be specified with `-u` : only messages from that user will count if provided.",
+				args="[-r <n>] [-min <n>] [-g <group>] [-u <user>] [n]", public=True)
+@alemiBot.on_message(is_allowed & filterCommand(["freq", "frequent"], list(alemiBot.prefixes), options={
+	"results" : ["-r", "-res"],
+	"minlen" : ["-min"],
+	"group" : ["-g", "-group"],
+	"user" : ["-u", "-user"]
+}))
+@report_error(logger)
+@set_offline
+async def cmd_frequency(client, message):
+	results = int(message.command["results"]) if "results" in message.command else 10
+	number = int(message.command["cmd"][0]) if "cmd" in message.command else 100
+	min_len = int(message.command["minlen"]) if "minlen" in message.command else 3
+	group = None
+	if "group" in message.command:
+		val = message.command["group"]
+		group = await client.get_chat(int(val) if val.isnumeric() else val)
+	else:
+		group = message.chat
+	user = None
+	if "user" in message.command:
+		val = message.command["user"]
+		user = await client.get_users(int(val) if val.isnumeric() else val)
+	logger.info(f"Counting {results} most frequent words in last {number} messages")
+	response = await edit_or_reply(message, f"` â†’ ` Counting word occurrences...")
+	words = []
+	count = 0
+	async for msg in client.iter_history(group.id, limit=number):
+		if not user or user.id == msg.from_user.id:
+			words += [ w for w in re.sub(r"[^0-9a-zA-Z\s\n]+", "", get_text(msg).lower()).split() if len(w) > min_len ]
+		count += 1
+		if count % 250 == 0:
+			await client.send_chat_action(message.chat.id, "playing")
+			await response.edit(f"` â†’ [{count}/{number}] ` Counting word occurrences...")
+	count = Counter(words).most_common()
+	from_who = f"(from **{get_username(user)}**)" if user else ""
+	output = f"`â†’ {get_channel(group)}` {from_who}\n` â†’ ` **{results}** most frequent words __(len > {min_len})__ in last **{number}** messages:\n"
+	for i in range(results):
+		output += f"`{i+1:02d}]{'-'*(results-i-1)}>` `{count[i][0]}` `({count[i][1]})`\n"
+	await response.edit(output, parse_mode="markdown")

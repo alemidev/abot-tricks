@@ -11,7 +11,6 @@ from bot import alemiBot
 import wikipediaapi
 import italian_dictionary
 from PyDictionary import PyDictionary
-from geopy.geocoders import Nominatim
 from udpy import UrbanClient
 import translators as ts
 from google_currency import convert
@@ -37,7 +36,6 @@ HELP = HelpCategory("APICALLS")
 
 recognizer = sr.Recognizer()
 dictionary = PyDictionary()
-geolocator = Nominatim(user_agent="telegram-client")
 UClient = UrbanClient()
 
 HELP.add_help(["convert", "conv"], "convert various units",
