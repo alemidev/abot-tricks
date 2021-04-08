@@ -332,7 +332,7 @@ HELP.add_help(["freq", "frequent"], "find frequent words in messages",
 }))
 @report_error(logger)
 @set_offline
-async def cmd_frequency(client, message):
+async def frequency_cmd(client, message):
 	results = int(message.command["results"]) if "results" in message.command else 10
 	number = int(message.command["cmd"][0]) if "cmd" in message.command else 100
 	min_len = int(message.command["minlen"]) if "minlen" in message.command else 3
