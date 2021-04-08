@@ -17,7 +17,9 @@ from pyrogram import filters
 from bot import alemiBot
 
 from util.permission import is_allowed
-from util.message import edit_or_reply, is_me, tokenize_json, get_text
+from util.message import edit_or_reply, is_me
+from util.getters import get_text
+from util.text import tokenize_json
 from util.command import filterCommand
 from util.decorators import report_error, set_offline
 from util.help import HelpCategory

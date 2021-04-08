@@ -14,7 +14,8 @@ from bot import alemiBot
 
 from util import batchify
 from util.permission import is_allowed, is_superuser
-from util.message import edit_or_reply, get_text, is_me
+from util.message import edit_or_reply, is_me
+from util.getters import get_text
 from util.command import filterCommand
 from util.decorators import report_error, set_offline
 from util.help import HelpCategory

@@ -12,7 +12,7 @@ from bot import alemiBot
 
 from util.permission import is_allowed, is_superuser
 from util.message import is_me, edit_or_reply
-from util.user import get_username
+from util.getters import get_username
 from util.command import filterCommand
 from util.time import parse_timedelta
 from util.decorators import report_error, set_offline
