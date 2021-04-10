@@ -1,0 +1,17 @@
+wikipedia-api
+italian-dictionary
+PyDictionary
+udpy
+translators
+unit-converter
+google_currency
+geopy
+pyfiglet
+pillow
+sympy
+matplotlib
+qrcode
+gtts
+pydub
+SpeechRecognition
+zalgo_text
