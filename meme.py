@@ -15,6 +15,7 @@ from bot import alemiBot
 from util import batchify
 from util.permission import is_allowed, is_superuser
 from util.message import edit_or_reply, is_me
+from util.text import order_suffix
 from util.getters import get_text
 from util.command import filterCommand
 from util.decorators import report_error, set_offline
@@ -51,13 +52,13 @@ async def send_media_appropriately(client, message, fname, reply_to, extra_text=
 
 HELP.add_help("meme", "get a meme",
 				"get a specific meme is a name is given, otherwise a random one. " +
-				"Use argument `-list` to get all meme names. You can send a bunch of " +
-				"random memes together by specifying how many in the `-b` (batch) option " +
+				"Use flag `-list` to get all meme names and flag `-stats` to get count and disk usage. " +
+				"You can send a bunch of random memes together by specifying how many in the `-b` (batch) option " +
 				"(only photos will be sent if a batch is requested). Memes can be any filetype. ",
-				public=True, args="[-list] [-b <n>] [<name>]")
+				public=True, args="[-stats] [-list] [-b <n>] [<name>]")
 @alemiBot.on_message(is_allowed & filterCommand("meme", list(alemiBot.prefixes), options={
 	"batch" : ["-b"]
-}, flags=["-list"]))
+}, flags=["-list", "-stat", "-stats"]))
 @report_error(logger)
 @set_offline
 async def meme_cmd(client, message):
@@ -66,7 +67,16 @@ async def meme_cmd(client, message):
 	reply_to = message.message_id
 	if is_me(message) and message.reply_to_message is not None:
 		reply_to = message.reply_to_message.message_id
-	if "-list" in args["flags"]:
+	if "-stat" in args["flags"] or "-stats" in args["flags"]:
+		memenumber = len(os.listdir("data/memes"))
+		proc_meme = await asyncio.create_subprocess_exec( # ewww this is not cross platform but will do for now
+			"du", "-b", "data/memes",
+			stdout=asyncio.subprocess.PIPE,
+			stderr=asyncio.subprocess.STDOUT)
+		stdout, _stderr = await proc_meme.communicate()
+		memesize = float(stdout.decode('utf-8').split("\t")[0])
+		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
+	elif "-list" in args["flags"]:
 		logger.info("Getting meme list")
 		memes = os.listdir("data/memes")
 		memes.sort()
