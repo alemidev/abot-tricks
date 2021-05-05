@@ -167,7 +167,9 @@ async def mass_mention(client, message):
 
 HELP.add_help(["ss", "screenshot"], "send screenshot notification",
 			"--only works in private chats!-- Notify other user in a private chat that a screenshot " +
-			"was taken. Add flag `-0` to make it not specify any particular message.", args="[-0]")
+			"was taken. Add flag `-0` to make it not specify any particular message. Credits to " +
+			"[ColinShark/Pyrogram-Snippets](https://github.com/ColinShark/Pyrogram-Snippets).",
+			args="[-0]")
 @alemiBot.on_message(filters.private & is_superuser & filterCommand(["ss", "screenshot"], list(alemiBot.prefixes), flags=["-0"]))
 @report_error(logger)
 @set_offline
