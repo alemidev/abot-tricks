@@ -7,6 +7,7 @@ import time
 from pyrogram import filters
 from pyrogram.errors import BadRequest, FloodWait
 from pyrogram.raw.functions.contacts import ResolveUsername
+from pyrogram.raw.functions.messages import SendScreenshotNotification
 
 from bot import alemiBot
 
@@ -163,6 +164,22 @@ async def mass_mention(client, message):
 		n += 1
 	if len(text) > 0:
 		await msg.reply(text)
+
+HELP.add_help(["ss", "screenshot"], "send screenshot notification",
+			"--only works in private chats!-- Notify other user in a private chat that a screenshot " +
+			"was taken. Add flag `-0` to make it not specify any particular message.", args="[-0]")
+@alemiBot.on_message(filters.private & is_superuser & filterCommand(["ss", "screenshot"], list(alemiBot.prefixes), flags=["-0"]))
+@report_error(logger)
+@set_offline
+async def screenshot_cmd(client, message):
+    await client.send(
+        SendScreenshotNotification(
+            peer=await client.resolve_peer(message.chat.id),
+            reply_to_msg_id=0 if "-0" in message.command["flags"] else message.message_id,
+            random_id=client.rnd_id(),
+        )
+    )
+	await edit_or_reply(message, "` → ` Screenshotted")
 
 INTERRUPT_SPAM = False
 
