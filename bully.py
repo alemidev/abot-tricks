@@ -174,13 +174,13 @@ HELP.add_help(["ss", "screenshot"], "send screenshot notification",
 @report_error(logger)
 @set_offline
 async def screenshot_cmd(client, message):
-    await client.send(
-        SendScreenshotNotification(
-            peer=await client.resolve_peer(message.chat.id),
-            reply_to_msg_id=0 if "-0" in message.command["flags"] else message.message_id,
-            random_id=client.rnd_id(),
-        )
-    )
+	await client.send(
+		SendScreenshotNotification(
+			peer=await client.resolve_peer(message.chat.id),
+			reply_to_msg_id=0 if "-0" in message.command["flags"] else message.message_id,
+			random_id=client.rnd_id(),
+		)
+	)
 	await edit_or_reply(message, "` → ` Screenshotted")
 
 INTERRUPT_SPAM = False
