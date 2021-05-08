@@ -65,21 +65,22 @@ HELP.add_help(["merge"], "join multiple messages into one",
 				"join multiple messages sent by you into one. Reply to the first one to merge, bot will join " +
 				"every consecutive message you sent. You can stop the bot from deleting merged messages with " +
 				"`-nodel` flag. You can specify a separator with `-s`, it will default to `\n`. You can specify max " +
-				"number of messages to merge with `-max`. Merge will stop at first message with attached media or that " +
-				"is a reply.", args="[-s <sep>] [-max <n>] [-nodel]", public=False)
+				"number of messages to merge as command argument. Merge will stop at first message with attached media or that " +
+				"is a reply.", args="[-s <sep>] [-nodel] [<n>]", public=False)
 @alemiBot.on_message(is_superuser & filterCommand(["merge"], list(alemiBot.prefixes), options={
-	"separator" : ["-s"],
-	"max" : ["-max"]
+	"separator" : ["-s", "--separator"],
 }, flags=["-nodel"]))
 @report_error(logger)
 @set_offline
 async def merge_cmd(client, message):
 	if not message.reply_to_message:
 		return await edit_or_reply(message, "`[!] → ` No start message given")
+	if not is_me(message.reply_to_message):
+		return await edit_or_reply(message, "`[!] → ` Can't merge message of others")
 	m_id = message.reply_to_message.message_id
 	sep = message.command["separator"] if "separator" in message.command else "\n"
 	del_msg = "-nodel" not in message.command["flags"]
-	max_to_merge = int(message.command["max"]) if "max" in message.command else -1
+	max_to_merge = int(message.command["cmd"][0]) if "cmd" in message.command else -1
 	logger.info(f"Merging messages")
 	out = ""
 	count = 0
