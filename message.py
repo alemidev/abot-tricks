@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 HELP = HelpCategory("MESSAGE")
 
-@HELP.add(cmd="[<time>]")
+@HELP.add(title="delme", cmd="[<time>]")
 @alemiBot.on_message(~filters.scheduled & filters.me & filters.regex(pattern=
 	r"(?:.*|)(?:-delme)(?: |)(?P<time>[0-9]+|)$"
 ), group=5)
@@ -43,19 +43,19 @@ async def deleteme(client, message):
 		await asyncio.sleep(float(t))
 	await message.delete()
 
-@HELP.add()
+@HELP.add(title="shrug")
 @alemiBot.on_message(filters.me & filters.regex(pattern="[\\" + "\\".join(list(alemiBot.prefixes)) + "]shrug"), group=2)
 async def shrug_replace(client, message):
 	"""will replace `.shrug` anywhere with the composite emoji"""
 	await message.edit(re.sub(r"[\.\/\!]shrug","¯\_(ツ)_/¯", message.text.markdown))
 
-@HELP.add()
+@HELP.add(title="eyy")
 @alemiBot.on_message(filters.me & filters.regex(pattern="[\\" + "\\".join(list(alemiBot.prefixes)) + "]eyy"), group=3)
 async def eyy_replace(client, message):
 	"""will replace `.eyy` anywhere with the composite emoji"""
 	await message.edit(re.sub(r"[\.\/\!]eyy","( ͡° ͜ʖ ͡°)", message.text.markdown))
 
-@HELP.add()
+@HELP.add(title="holup")
 @alemiBot.on_message(filters.me & filters.regex(pattern="[\\" + "\\".join(list(alemiBot.prefixes)) + "]holup"), group=4)
 async def holup_replace(client, message):
 	"""will replace `.holup` anywhere with the composite emoji"""
