@@ -48,7 +48,7 @@ async def expr(client, message):
 									caption=f"` → {expr} `")
 	await client.send_chat_action(message.chat.id, "cancel")
 
-@HELP.add(args="<expr>", sudo=False)
+@HELP.add(cmd="<expr>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["plot", "graph"], list(alemiBot.prefixes), flags=["-3d"]))
 @report_error(logger)
 @set_offline
