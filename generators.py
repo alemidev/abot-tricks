@@ -41,16 +41,20 @@ geolocator = Nominatim(user_agent="telegram-client")
 
 HELP = HelpCategory("GENERATORS")
 
-HELP.add_help(["rand", "random", "roll"], "get random choices",
-				"this can be used as a dice roller (`.roll 3d6`). If a list of choices is given, a random one " +
-				"will be chosen from that. If a number is given, it will choose a value from 1 to <n>, both included. " +
-				"You can specify how many extractions to make", args="[-n <n>] [choices] | [n]d<max>", public=True)
+@HELP.add(cmd="[<choices>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["rand", "random", "roll"], list(alemiBot.prefixes), options={
 	"batchsize" : ["-n"]
 }))
 @report_error(logger)
 @set_offline
 async def rand_cmd(client, message):
+	"""get random choices
+
+	This can be used as a dice roller (`.roll 3d6`).
+	If a list of choices is given, a random one will be chosen from that.
+	If a number is given, it will choose a value from 1 to <n>, both included.
+	You can specify how many extractions to make with `-n`.
+	"""
 	args = message.command
 	res = []
 	times = 1
@@ -69,13 +73,11 @@ async def rand_cmd(client, message):
 		times = int(args["batchsize"]) # overrule dice roller formatting
 		
 	if maxval is not None:
-		logger.info(f"Rolling d{maxval}")
 		for _ in range(times):
 			res.append(secrets.randbelow(maxval) + 1)
 		if times > 1:
 			out += f"`→ Rolled {times}d{maxval}` : **{sum(res)}**\n"
 	elif "cmd" in args:
-		logger.info(f"Rolling {args['cmd']}")
 		for _ in range(times):
 			res.append(secrets.choice(args['cmd']))
 		if times > 1: # This is kinda ugly but pretty handy
@@ -88,7 +90,6 @@ async def rand_cmd(client, message):
 				out += el[0] + " "
 			out += "**\n"
 	else:
-		logger.info(f"Rolling binary")
 		for _ in range(times):
 			res.append(secrets.randbelow(2))
 		if times > 1:
@@ -103,11 +104,7 @@ async def rand_cmd(client, message):
 		out += f"` → ` [ " + " ".join(str(r) for r in res) + " ]"
 	await edit_or_reply(message, out)
 
-HELP.add_help(["qrcode", "qr"], "make qr code",
-				"make a qr code with given text. Many parameters can be specified : size of specific boxes (`-box`), " +
-				"image border (`-border`), qrcode size (`-size`). QR colors can be specified too: " +
-				"background with `-b` and front color with `-f`",
-				args="[-border <n>] [-size <n>] [-box <n>] [-b <color>] [-f <color>] <text>", public=True)
+@HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["qrcode", "qr"], list(alemiBot.prefixes), options={
 	"border" : ["-border"],
 	"size" : ["-size"],
@@ -118,6 +115,12 @@ HELP.add_help(["qrcode", "qr"], "make qr code",
 @report_error(logger)
 @set_offline
 async def qrcode_cmd(client, message):
+	"""generate a qr code
+
+	Make a qr code with given text.
+	Size of specific boxes can be specified with `-box`, image border with `-border`, qrcode size with `-size`.
+	QR colors can be specified too: background with `-b` and front color with `-f`
+	"""
 	args = message.command
 	if "arg" not in args:
 		return await edit_or_reply(message, "`[!] → ` No text given")
@@ -145,14 +148,17 @@ async def qrcode_cmd(client, message):
 	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.message_id)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["color"], "send solid color image",
-				"create a solid color image and send it. Color can be given as hex or " +
-				"by specifying each channel individally. Each channel can range from 0 to 256. ",
-				args="( <hex> | <r> <g> <b> )", public=True)
+@HELP.add(cmd="( <hex> | <r> <g> <b> )", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["color"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def color_cmd(client, message):
+	"""send a solid color image
+
+	Create a solid color image and send it.
+	Color can be given as hex or by specifying each channel individally.
+	Each channel can range from 0 to 256.
+	"""
 	clr = None
 	if "cmd" in message.command:
 		if len(message.command["cmd"]) > 2:
@@ -172,19 +178,21 @@ async def color_cmd(client, message):
 	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.message_id)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["voice"], "convert text to voice",
-				"create a voice message using Google Text to Speech. By default, english will be " +
-				"used as lang, but another one can be specified with `-l`. You can add `-slow` flag " +
-				"to make the generated speech slower. If command comes from self, will delete original " +
-				"message. TTS result will be converted to `.ogg`. You can skip this step and send as mp3 by " +
-				"adding the `-mp3` flag. You can add the `-file` flag to make tts of a replied to or attached text file.",
-				args="[-l <lang>] [-slow] [-mp3] <text>", public=True)
+@HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["voice"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }, flags=["-slow", "-mp3", "-file"]))
 @report_error(logger)
 @set_offline
 async def voice_cmd(client, message):
+	"""convert text to voice
+
+	Create a voice message using Google Text to Speech.
+	By default, english will be	used as lang, but another one can be specified with `-l`.
+	You can add `-slow` flag to make the generated speech slower.
+	TTS result will be converted to `.ogg`. You can skip this step and send as mp3 by adding the `-mp3` flag.
+	You can add the `-file` flag to make tts of a replied to or attached text file.
+	"""
 	text = ""
 	opts = {}
 	from_file = "-file" in message.command["flags"]
@@ -220,20 +228,21 @@ async def voice_cmd(client, message):
 		await client.send_voice(message.chat.id, "data/tts.ogg", **opts)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["loc", "location"], "send a location",
-				"send a location for specific latitude and longitude. Both has " +
-				"to be given and are in range [-90, 90]. If a title is given with the `-t` " +
-				"option, the location will be sent as venue.", args="[-t <title>] (<lat> <long> | <loc>)", public=True)
+@HELP.add(cmd="(<lat> <long> | <loc>)", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["loc", "location"], list(alemiBot.prefixes), options={
 	"title" : ["-t"]
 }))
 @report_error(logger)
 @set_offline
 async def location_cmd(client, message):
+	"""send a location
+
+	Target location can be specified via latitude and longitude (range [-90,90]) or with an address.
+	If a title is given with the `-t` option, the location will be sent as venue.
+	"""
 	args = message.command
 	latitude = 0.0
 	longitude = 0.0
-	logger.info("Getting a location")
 	if "arg" in args:
 		try:
 			coords = args["arg"].split(" ", 2)
@@ -256,10 +265,7 @@ async def location_cmd(client, message):
 	else:
 		await client.send_location(message.chat.id, latitude, longitude)
 
-HELP.add_help("figlet", "make a figlet art",
-				"run figlet and make a text art. You can specify a font (`-f`), or request a random one (`-r`). " +
-				"Get list of available fonts with `-list`. You can specify max figlet width (`-w`), default is 30.",
-				args="[-list] [-r | -f <font>] [-w <n>] <text>", public=True)
+@HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("figlet", list(alemiBot.prefixes), options={
 	"font" : ["-f", "-font"],
 	"width" : ["-w", "-width"]
@@ -267,6 +273,12 @@ HELP.add_help("figlet", "make a figlet art",
 @report_error(logger)
 @set_offline
 async def figlet_cmd(client, message):
+	"""make a figlet art
+
+	Run figlet and make a text art. You can specify a font (`-f`), or request a random one (`-r`).
+	Get list of available fonts with `-list`.
+	You can specify max figlet width (`-w`), default is 30.
+	"""
 	args = message.command
 	if "-list" in args["flags"]:
 		msg = f"<code> → </code> <u>Figlet fonts</u> : <b>{len(FIGLET_FONTS)}</b>\n[ "
@@ -288,17 +300,18 @@ async def figlet_cmd(client, message):
 		if f != "" and f in FIGLET_FONTS:
 			font = f
 
-	logger.info(f"figlet-ing {args['arg']}")
 	result = pyfiglet.figlet_format(args["arg"], font=font, width=width)
 	await edit_or_reply(message, "<code> →\n" + result + "</code>", parse_mode="html")
 
-HELP.add_help("fortune", "do you feel fortunate!?",
-				"run `fortune` to get a random sentence. Like fortune bisquits!", args="[-cow]", public=True)
+@HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["fortune"], list(alemiBot.prefixes), flags=["-cow"]))
 @report_error(logger)
 @set_offline
 async def fortune_cmd(client, message):
-	logger.info(f"Running command \"fortune\"")
+	"""do you feel fortuname!?
+
+	Run `fortune` on terminal to get a random sentence. Like fortune bisquits!
+	"""
 	stdout = b""
 	if "-cow" in message.command["flags"]:
 		proc = await asyncio.create_subprocess_shell(
@@ -316,14 +329,7 @@ async def fortune_cmd(client, message):
 	output = cleartermcolor(stdout.decode())
 	await edit_or_reply(message, "``` → " + output + "```")
 
-HELP.add_help(["iter_freq"], "find frequent words in messages",
-				"**[!]** --This will search with telegram API calls--\n" +
-				"find most used words in last messages. If no number is given, will search only " +
-				"last 100 messages. By default, 10 most frequent words are shown, but number of results " +
-				"can be changed with `-r`. By default, only words of `len > 3` will be considered. " +
-				"A minimum word len can be specified with `-min`. Will search in current group or any specified with `-g`. " +
-				"A single user can be specified with `-u` : only messages from that user will count if provided.",
-				args="[-r <n>] [-min <n>] [-g <group>] [-u <user>] [n]", public=True)
+@HELP.add(cmd="[<n>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["iter_freq"], list(alemiBot.prefixes), options={
 	"results" : ["-r", "-res"],
 	"minlen" : ["-min"],
@@ -333,6 +339,15 @@ HELP.add_help(["iter_freq"], "find frequent words in messages",
 @report_error(logger)
 @set_offline
 async def cmd_frequency(client, message):
+	"""search most frequent words in messages
+
+	**[!]** --This will search with telegram API calls--
+	Find most used words in last messages. If no number is given, will search only last 100 messages.
+	By default, 10 most frequent words are shown, but number of results can be changed with `-r`.
+	By default, only words of `len > 3` will be considered. A minimum word len can be specified with `-min`.
+	Will search in current group or any specified with `-g`.
+	A single user can be specified with `-u` : only messages from that user will count if provided.
+	"""
 	results = int(message.command["results"]) if "results" in message.command else 10
 	number = int(message.command["cmd"][0]) if "cmd" in message.command else 100
 	min_len = int(message.command["minlen"]) if "minlen" in message.command else 3
@@ -346,7 +361,6 @@ async def cmd_frequency(client, message):
 	if "user" in message.command:
 		val = message.command["user"]
 		user = await client.get_users(int(val) if val.isnumeric() else val)
-	logger.info(f"Counting {results} most frequent words in last {number} messages")
 	response = await edit_or_reply(message, f"` → ` Counting word occurrences...")
 	words = []
 	count = 0

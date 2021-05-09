@@ -50,18 +50,21 @@ async def send_media_appropriately(client, message, fname, reply_to, extra_text=
 	await client.send_chat_action(message.chat.id, "cancel")
 	
 
-HELP.add_help("meme", "get a meme",
-				"get a specific meme is a name is given, otherwise a random one. " +
-				"Use flag `-list` to get all meme names and flag `-stats` to get count and disk usage. " +
-				"You can send a bunch of random memes together by specifying how many in the `-b` (batch) option " +
-				"(only photos will be sent if a batch is requested). Memes can be any filetype. ",
-				public=True, args="[-stats] [-list] [-b <n>] [<name>]")
+@HELP.add(cmd="[<name>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("meme", list(alemiBot.prefixes), options={
 	"batch" : ["-b"]
 }, flags=["-list", "-stat", "-stats"]))
 @report_error(logger)
 @set_offline
 async def meme_cmd(client, message):
+	"""get a meme from collection
+
+	If a name was specified, get meme matching requested name. Otherwise, get random meme.
+	Use flag `-list` to get all meme names and flag `-stats` to get count and disk usage.
+	You can send a bunch of random memes together by specifying how many in the `-b` (batch) option \
+	(only photos will be sent if a batch is requested).
+	Memes can be any filetype.
+	"""
 	args = message.command
 	batch = max(min(int(args["batch"]), 10), 2) if "batch" in args else 0
 	reply_to = message.message_id
@@ -77,7 +80,6 @@ async def meme_cmd(client, message):
 		memesize = float(stdout.decode('utf-8').split("\t")[0])
 		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
 	elif "-list" in args["flags"]:
-		logger.info("Getting meme list")
 		memes = os.listdir("data/memes")
 		memes.sort()
 		out = f"` → ` **Meme list** ({len(memes)} total) :\n[ "
@@ -90,7 +92,6 @@ async def meme_cmd(client, message):
 					if s.lower().startswith(name) ]
 		if len(memes) > 0:
 			fname = memes[0]
-			logger.info(f"Getting specific meme : \"{fname}\"")
 			await send_media_appropriately(client, message, fname, reply_to)
 		else:
 			await edit_or_reply(message, f"`[!] → ` no meme named {args['cmd'][0]}")
@@ -105,23 +106,25 @@ async def meme_cmd(client, message):
 			await client.send_media_group(message.chat.id, memes)
 		else:
 			fname = secrets.choice(os.listdir("data/memes"))
-			logger.info(f"Getting random meme : \"{fname}\"")
 			await send_media_appropriately(client, message, fname, reply_to, extra_text="Random meme : ")
 
-HELP.add_help("steal", "steal a meme",
-				"save a meme to collection. Either attach an image or reply to one. " +
-				"A name for the meme must be given.", args="<name>")
+@HELP.add(cmd="<name>")
 @alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def steal_cmd(client, message):
+	"""steal a meme
+
+	Save a meme to collection.
+	Either attach an image or reply to one.
+	A name for the meme must be given (and must not contain spaces)
+	"""
 	if "cmd" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No meme name provided")
 	msg = message
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
 	if msg.media:
-		logger.info("Stealing meme")
 		fpath = await client.download_media(msg, file_name="data/memes/") # + message.command["cmd"][0])
 		# await edit_or_reply(message, '` → ` saved meme as {}'.format(fpath))
 		path, fname = os.path.splitext(fpath) # this part below is trash, im waiting for my PR on pyrogram
@@ -171,20 +174,23 @@ async def fry_image(img: Image) -> Image:
 
 	return img
 
-HELP.add_help("fry", "fry a meme",
-				"fry a meme. Sadly, no stars on eyes (yet!). Code comes from `https://github.com/Ovyerus/deeppyer`. " +
-				"The number of frying rounds can be specified, will default to 1.", args="[-c <n>]", public=True)
+@HELP.add(cmd="[-c <n>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("fry", list(alemiBot.prefixes), options={
 	"count" : ["-c"]
 }))
 @report_error(logger)
 @set_offline
 async def deepfry_cmd(client, message):
+	"""deepfry an image
+
+	Will deepfry an image (won't add "laser eyes").
+	The number of frying rounds can be specified with `-c`. Will default to 1.
+	Code from https://github.com/Ovyerus/deeppyer.
+	"""
 	args = message.command
 	target = message.reply_to_message if message.reply_to_message is not None else message
 	if target.media:
 		await client.send_chat_action(message.chat.id, "upload_photo")
-		logger.info(f"Frying meme")
 		msg = await edit_or_reply(message, "` → ` Downloading...")
 		count = 1
 		if "count" in args:
@@ -237,14 +243,18 @@ def ascii_image(img:Image, new_width:int=120) -> str:
 	ascii_image = "\n".join(ascii_image)
 	return ascii_image
 
-HELP.add_help("ascii", "make ascii art of picture",
-				"roughly convert a picture into ascii art. Code comes from `https://github.com/anuragrana/Python-Scripts/blob/master/image_to_ascii.py`. " +
-				"You can specify a width for the resulting image in characters (default is 120). If the requested width is lower than 50 characters, " +
-				"the result will be printed directly into telegram. Else, a txt will be attached.", args="[<width>]", public=True)
+@HELP.add(cmd="[<width>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("ascii", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def ascii_cmd(client, message):
+	"""make ascii art of picture
+
+	Roughly convert a picture into ascii art.
+	You can specify width of the resulting image in characters as command argument (default is 120).
+	If the requested width is lower than 50 characters,	the result will be printed directly into telegram. Else, a txt will be attached.
+	Code comes from https://github.com/anuragrana/Python-Scripts/blob/master/image_to_ascii.py.
+	"""
 	msg = message
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
@@ -252,7 +262,6 @@ async def ascii_cmd(client, message):
 	if "cmd" in message.command:
 		width = int(message.command["cmd"][0])
 	if msg.media:
-		logger.info(f"Making ascii of img")
 		fpath = await client.download_media(msg, file_name="toascii")
 		image = Image.open(fpath)
 
@@ -270,13 +279,7 @@ async def ascii_cmd(client, message):
 
 INTERRUPT_PASTA = False
 
-HELP.add_help("pasta", "drop a copypasta",
-				"give path to a .txt (or any file really) containing long text and bot will drop it in chat. By default, " +
-				"pasta will be split at newlines (`\n`) and sent at a certain interval (2s), but you can customize both. " +
-				"Long messages will still be split in chunks of 4096 characters due to telegram limit. Use flag `-stop` to stop " +
-				"ongoing pasta. Add flag `-mono` to print pasta monospaced. Add flag `-edit` to always edit the first message instead of " +
-				"sending new ones. Getting a good pasta collection is up to you, make sure to `.r mkdir data/pastas` and `wget` some cool pastas in there!",
-				args="[-stop] [-i <n>] [-s <sep>] [-mono] <fpath>", public=False)
+@HELP.add(cmd="<fpath>")
 @alemiBot.on_message(is_superuser & filterCommand("pasta", list(alemiBot.prefixes), options={
 	"separator" : ["-s", "-sep"],
 	"interval" : ["-i", "-intrv"]
@@ -284,6 +287,16 @@ HELP.add_help("pasta", "drop a copypasta",
 @report_error(logger)
 @set_offline
 async def pasta_cmd(client, message):
+	"""drop a copypasta
+
+	Give path to a .txt (or any file really) containing long text and bot will drop it in chat.
+	Use flag `-stop` to stop ongoing pasta.
+	By default,	pasta will be split at newlines (`\n`) and sent at a certain interval (2s), but you can customize both.
+	Long messages will still be split in chunks of 4096 characters due to telegram limit.
+	Add flag `-mono` to print pasta monospaced.
+	Add flag `-edit` to always edit the first message instead of sending new ones.
+	Getting a good pasta collection is up to you, make sure to `.r mkdir data/pastas` and `wget` some cool pastas in there!
+	"""
 	global INTERRUPT_PASTA
 	if "-stop" in message.command["flags"]:
 		INTERRUPT_PASTA = True
