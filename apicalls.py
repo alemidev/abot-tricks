@@ -303,7 +303,7 @@ async def transcribe_cmd(client, message):
 	await edit_or_reply(msg, out)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-@HELP.add(				args="[-l <lang>] [-overlay]", sudo=False)
+@HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["ocr"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }, flags=["-overlay", "-json"]))
@@ -349,7 +349,7 @@ async def ocr_cmd(client, message):
 
 # HELP.add_help(["link"], "expand a reward url",
 # 				"expand given url using `linkexpander.com`.", 
-# 				args="<url>", sudo=False)
+# 				cmd="<url>", sudo=False)
 # @alemiBot.on_message(is_allowed & filterCommand(["link"], list(alemiBot.prefixes)))
 # @report_error(logger)
 # @set_offline
