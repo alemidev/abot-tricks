@@ -38,48 +38,52 @@ recognizer = sr.Recognizer()
 dictionary = PyDictionary()
 UClient = UrbanClient()
 
-HELP.add_help(["convert", "conv"], "convert various units",
-				"convert various measure units. Accepts many units, like " +
-				"`.convert 52 °C °F` or `.convert 2.78 daN*mm^2 mN*µm^2`.",
-				args="<val> <from> <to>", public=True)
+@HELP.add(cmd="<val> <from> <to>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["convert", "conv"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def convert_cmd(client, message):
+	"""convert various measure units
+
+	Conversion tool. Accepts many units, like `.convert 52 °C °F` \
+	or `.convert 2.78 daN*mm^2 mN*µm^2`.
+	"""
 	if "cmd" not in message.command or len(message.command["cmd"]) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
-	logger.info("Converting units")
 	res = converts(message.command["cmd"][0] + " " + message.command["cmd"][1], message.command["cmd"][2])
 	await edit_or_reply(message, f"` → ` {res} {message.command['cmd'][2]}")
 
-HELP.add_help(["currency", "cconvert", "curr"], "convert across currencies",
-				"convert various measure units. Accepts many currencies, like " +
-				"`.convert 1 btc us`.",
-				args="<val> <from> <to>", public=True)
+@HELP.add(cmd="<val> <from> <to>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def currency_convert_cmd(client, message):
+	"""convert various currencies
+	
+	Currency conversion tool. Accept many currency tickers, like `.convert 1 btc us`.
+	Will use Google Currency for values.
+	"""
 	if "cmd" not in message.command or len(message.command["cmd"]) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
-	logger.info("Converting currency")
 	await client.send_chat_action(message.chat.id, "choose_contact")
 	res = json.loads(convert(message.command["cmd"][1], message.command["cmd"][2], float(message.command["cmd"][0])))
 	await edit_or_reply(message, f"` → ` {res['amount']} {res['to']}")
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["diz", "dizionario"], "search in ita dict",
-				"get definition from italian dictionary of given word.",
-				args="<word>", public=True)
+@HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def diz_cmd(client, message):
+	"""search in italian dictionary
+	
+	Get definition of given word from italian dictionary.
+	Will use www.dizionario-italiano.it.
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	await client.send_chat_action(message.chat.id, "upload_document")
 	arg = message.command["arg"]
-	logger.info(f"Searching \"{arg}\" on it dictionary")
 	# Use this to get only the meaning 
 	res = italian_dictionary.get_definition(arg) 
 
@@ -89,18 +93,20 @@ async def diz_cmd(client, message):
 	await edit_or_reply(message, out)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["dic", "dictionary"], "search in eng dict",
-				"get definition from english dictionary of given word.",
-				args="<word>", public=True)
+@HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["dic", "dictionary"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def dic_cmd(client, message):
+	"""search in english dictionary
+
+	Get definition of given word from English dictionary.
+	Will search on wordnet.princeton.edu.
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	await client.send_chat_action(message.chat.id, "upload_document")
 	arg = message.command["arg"]
-	logger.info(f"Searching \"{arg}\" on eng dictionary")
 	res = dictionary.meaning(arg)
 	if res is None:
 		return await edit_or_reply(message, "` → No match`")
@@ -113,21 +119,23 @@ async def dic_cmd(client, message):
 	await edit_or_reply(message, out)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["ud", "urban"], "search in urban dict",
-				"get definition from urban dictionary of given query. Number of results to return can " +
-				"be specified with `-r`, will default to only one (top definition).",
-				args="[-r <n>] <query>", public=True)
+@HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["ud", "urban"], list(alemiBot.prefixes), options={
 	"results" : ["-r", "-res"]
 }))
 @report_error(logger)
 @set_offline
 async def urbandict_cmd(client, message):
+	"""search on urban dictionary
+	
+	Get definition from urban dictionary of given query.
+	Number of results to return can be specified with `-r`, \
+	will default to only one (top definition).
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	n = int(message.command["results"]) if "results" in message.command else 1
 	await client.send_chat_action(message.chat.id, "upload_document")
-	logger.info(f"Searching \"{message.command['arg']}\" on urban dictionary")
 	res = UClient.get_definition(message.command["arg"])
 	if len(res) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not found")
@@ -138,10 +146,7 @@ async def urbandict_cmd(client, message):
 	await edit_or_reply(message, out, parse_mode="html")
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help("wiki", "search on wikipedia",
-				"search on wikipedia, attaching initial text and a link. Language will default to " +
-				"english if not specified with `-l`. By default, only first 1000 characters will be printed, " +
-				"a different amount of characters to print can be specified with `-max`.", args="[-l <lang>] [-max <n>] <query>", public=True)
+@HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("wiki", list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"],
 	"limit" : ["-max"]
@@ -149,13 +154,19 @@ HELP.add_help("wiki", "search on wikipedia",
 @report_error(logger)
 @set_offline
 async def wiki_cmd(client, message):
+	"""search on wikipedia
+	
+	Search on wikipedia, attaching initial text and a link.
+	Language will default to english if not specified with `-l`.
+	By default, only first 1000 characters will be printed, a different amount \
+	can be specified with `-max`
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	lang = message.command["lang"] if "lang" in message.command else "en"
 	limit = int(message.command["limit"]) if "limit" in message.command else 1000
 	await client.send_chat_action(message.chat.id, "upload_document")
 	Wikipedia = wikipediaapi.Wikipedia(lang)
-	logger.info(f"Searching \"{message.command['arg']}\" on wikipedia")
 	page = Wikipedia.page(message.command["arg"])
 	if not page.exists():
 		return await edit_or_reply(message, "`[!] → ` No results")
@@ -165,11 +176,7 @@ async def wiki_cmd(client, message):
 	await edit_or_reply(message, f"` → {page.title}`\n{text}\n` → ` {page.fullurl}")
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["translate", "tran", "tr"], "translate to/from",
-				"translate text from a language (autodetected if not specified, `-s`) to another " +
-				"specified lang (defaults to eng, `-d`). Used engine can be specified with `-e` (available `google`, `deepl`, `bing`), " +
-				"only `bing` works as of now and is the default. The lang codes must be 2 letter long (en, ja...)",
-				args="[-s <src>] [-d <des>] [-e <engine>]", public=True)
+@HELP.add(cmd="[<text>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["translate", "tran", "tr"], list(alemiBot.prefixes), options={
 	"src" : ["-s", "-src"],
 	"dest" : ["-d", "-dest"],
@@ -178,6 +185,14 @@ HELP.add_help(["translate", "tran", "tr"], "translate to/from",
 @report_error(logger)
 @set_offline
 async def translate_cmd(client, message):
+	"""translate to/from
+
+	Translate text from a language (autodetected if not specified with `-s`) to another \
+	specified lang (defaults to eng if not specified with `-d`).
+	Used engine can be specified with `-e` (available `google`, `deepl`, `bing`). \
+	Only `bing` works as of now and is the default.
+	The lang codes must be 2 letter long (en, ja...)
+	"""
 	args = message.command
 	if "arg" not in args and message.reply_to_message is None:
 		return await edit_or_reply(message, "`[!] → ` Nothing to translate")
@@ -190,7 +205,6 @@ async def translate_cmd(client, message):
 	engine = args["engine"] if "engine" in args else "bing"
 	await client.send_chat_action(message.chat.id, "find_location")
 	q = message.reply_to_message.text if message.reply_to_message is not None else args["arg"]
-	logger.info(f"Translating {q}")
 	out = "`[!] → ` Unknown engine"
 	if engine == "google":
 		out = "`[!] → ` As of now, this hangs forever, don't use yet!"
@@ -202,17 +216,18 @@ async def translate_cmd(client, message):
 	await edit_or_reply(message, out)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help("lmgtfy", "let me google that for you",
-				"generates a `Let Me Google That For You` link.",
-				args="<query>", public=True)
+@HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("lmgtfy", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def lmgtfy(client, message):
+	"""let me google that for you
+
+	Generates a `Let Me Google That For You` link
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	arg = parse.quote_plus(message.command["arg"])
-	logger.info(f"lmgtfy {arg}")
 	await edit_or_reply(message, f"<code> → </code> http://letmegooglethat.com/?q={arg}",
 										disable_web_page_preview=True, parse_mode="html")
 
@@ -220,24 +235,24 @@ async def lmgtfy(client, message):
 WTTR_STRING = "`→ {loc} `\n` → `**{desc}**\n` → ` {mintemp:.0f}C - {maxtemp:.0f}C `|` **{hum}%** humidity\n" + \
 			  "` → ` pressure **{press}hPa** `|` wind **{wspd}m/s**\n` → ` **{vis}m** visibility (__{cld}% clouded__)"
 
-HELP.add_help(["weather", "wttr"], "get weather of location",
-				"makes a request to wttr.in for provided location. Props to https://github.com/chubin/wttr.in " +
-				"for awesome site, remember you can `curl wttr.in` in terminal. Result language can be specified with `-l`.",
-				# "searches OpenWeatherMap for specified location. To make queries to OpenWeatherMap " +
-				# "an API key is necessary, thus registering to OpenWeatherMap. This is super early and shows very little.",
-				args="[-l <lang>] <location>", public=True)
+@HELP.add(cmd="<location>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["weather", "wttr"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }))
 @report_error(logger)
 @set_offline
 async def weather_cmd(client, message):
+	"""get weather of location
+	
+	Makes a request to wttr.in for provided location. Props to https://github.com/chubin/wttr.in \
+	for awesome site, remember you can `curl wttr.in` in terminal.
+	Result language can be specified with `-l`.
+	"""
 	if "arg" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	# APIKEY = alemiBot.config.get("weather", "apikey", fallback="")
 	# if APIKEY == "":
 	#	  return await edit_or_reply(message, "`[!] → ` No APIKEY provided in config")
-	logger.info("curl wttr.in")
 	await client.send_chat_action(message.chat.id, "find_location")
 	q = message.command["arg"]
 	lang = message.command["lang"] if "lang" in message.command else "en"
@@ -254,18 +269,20 @@ async def weather_cmd(client, message):
 	#												  wspd=r["wind"]["speed"], vis=r["visibility"], cld=r["clouds"]["all"]))
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["scribe"], "transcribes a voice message",
-				"reply to a voice message to transcribe it. It uses Google Speech Recognition API. " +
-				"It will work without a key but usage may get limited. You can try to [get a free key](http://www.chromium.org/developers/how-tos/api-keys) " +
-				"and add it to your config under category [scribe] in a field named \"key\". You can specify speech " +
-				"recognition language with `-l` (using `RFC5646` language tag format :	`en-US`, `it-IT`, ...)",
-				args="[-l <lang>]", public=True)
+@HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["scribe"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }))
 @report_error(logger)
 @set_offline
 async def transcribe_cmd(client, message):
+	"""transcribes a voice message
+
+	Reply to a voice message to transcribe it. It uses Google Speech Recognition API.
+	It will work without a key but usage may get limited. You can try to get a free key here: http://www.chromium.org/developers/how-tos/api-keys
+	If you have an API key, add it to your config under category [scribe] in a field named \"key\".
+	You can specify speech recognition language with `-l` (using `RFC5646` language tag format :`en-US`, `it-IT`, ...)
+	"""
 	await client.send_chat_action(message.chat.id, "record_audio")
 	msg = await edit_or_reply(message, "` → ` Working...")
 	path = None
@@ -286,18 +303,22 @@ async def transcribe_cmd(client, message):
 	await edit_or_reply(msg, out)
 	await client.send_chat_action(message.chat.id, "cancel")
 
-HELP.add_help(["ocr"], "read text in photos",
-				"make a request to https://api.ocr.space/parse/image. The number of allowed queries " +
-				"is limited, the result is not guaranteed and it requires an API key set up to work. " +
-				"A language for the OCR can be specified with `-l`. You can request OCR.space overlay in response " +
-				"with the `-overlay` flag. A media can be attached or replied to. Add the `-json` flag to get raw result.",
-				args="[-l <lang>] [-overlay]", public=True)
+@HELP.add(				args="[-l <lang>] [-overlay]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["ocr"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }, flags=["-overlay", "-json"]))
 @report_error(logger)
 @set_offline
 async def ocr_cmd(client, message):
+	"""read text in photos
+
+	Make a request to https://api.ocr.space/parse/image. The number of allowed queries \
+	is limited, the result is not guaranteed and it requires an API key set up to work.
+	A language for the OCR can be specified with `-l`.
+	You can request OCR.space overlay in response with the `-overlay` flag.
+	A media can be attached or replied to.
+	Add the `-json` flag to get raw result.
+	"""
 	payload = {
 		'isOverlayRequired': "-overlay" in message.command["flags"],
 		'apikey': alemiBot.config.get("ocr", "apikey", fallback=""),
@@ -328,7 +349,7 @@ async def ocr_cmd(client, message):
 
 # HELP.add_help(["link"], "expand a reward url",
 # 				"expand given url using `linkexpander.com`.", 
-# 				args="<url>", public=True)
+# 				args="<url>", sudo=False)
 # @alemiBot.on_message(is_allowed & filterCommand(["link"], list(alemiBot.prefixes)))
 # @report_error(logger)
 # @set_offline

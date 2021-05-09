@@ -63,12 +63,7 @@ async def attack_username(client, message, chat, username, interval, limit):
 	await message.edit(f"`[!] → ` Failed claiming --@{username}-- (made **{attempts}** attempts)")
 	await client.delete_channel(chat.id)
 
-HELP.add_help(["username"], "tries to claim an username",
-			"Will create an empty channel and then attempt to rename it to given username until it succeeds or " +
-			"max time is reached. Attempts interval can be specified (`-i`), defaults to 60 seconds. By default " +
-			"it will give up after 5 minutes of attempts, set a time limit with `-lim`. Manually stop attempts with `-stop`. " +
-			"This is very aggressive and will cause FloodWaits super easily if abused, be wary!",
-			args="[-stop] [-i <n>] [-lim <time>] <username>")
+@HELP.add(cmd="<username>")
 @alemiBot.on_message(is_superuser & filterCommand("username", list(alemiBot.prefixes), options={
 	"interval" : ["-i", "-int"],
 	"limit" : ["-lim", "-limit"]
@@ -76,6 +71,14 @@ HELP.add_help(["username"], "tries to claim an username",
 @report_error(logger)
 @set_offline
 async def steal_username_cmd(client, message):
+	"""tries to claim an username
+
+	Will create an empty channel and then attempt to rename it to given username until it succeeds or max time is reached.
+	Attempts interval can be specified (`-i`), defaults to 60 seconds.
+	By default it will give up after 5 minutes of attempts, set a time limit with `-lim`.
+	Manually stop attempts with `-stop`.
+	This is very aggressive and will cause FloodWaits super easily if abused, be wary!
+	"""
 	global INTERRUPT_STEALER
 	if "-stop" in message.command["flags"]:
 		INTERRUPT_STEALER = True
@@ -106,16 +109,7 @@ async def fake_typing(client, tgt, cycle_n, sleep_t, action, message):
 	except: # maybe deleted?
 		pass
 
-HELP.add_help(["typing"], "will show as typing on chat",
-			"makes you show as typing on a certain chat. You can specify an username or a chat/user id. If none is " +
-			"given, it will work in current chat. It works by sending a chat action every 4 seconds (they last 5), but a custom " +
-			"interval can be specified with `-i`. You can specify for how long chat actions should be sent with a packed string like this : " +
-			"`8y3d4h15m3s` (years, days, hours, minutes, seconds), any individual token can be given in any position " +
-			"and all are optional, it can just be `30s` or `5m`. If you want to include spaces, wrap the 'time' string in `\"`. " +
-			"A different chat action from 'typing' can be specified with `-a`. Available chat actions are: `typing`, `upload_photo`, " +
-			"`record_video`, `upload_video`, `record_audio`, `upload_audio`, `upload_document`, `find_location`, `record_video_note`, " +
-			"`upload_video_note`, `choose_contact`, `playing`, `speaking`, `cancel`. You can terminate ongoing typing with `-stop`, but if " +
-			"more than one is running, a random one will be stopped.", args="[-stop] [-t <target>] [-a <action>] [-i <n>] <time>")
+@HELP.add(cmd="<time>")
 @alemiBot.on_message(is_superuser & filterCommand("typing", list(alemiBot.prefixes), options={
 	"target" : ["-t"],
 	"interval" : ["-i"],
@@ -124,6 +118,18 @@ HELP.add_help(["typing"], "will show as typing on chat",
 @report_error(logger)
 @set_offline
 async def typing_cmd(client, message):
+	"""show typing status in chat
+
+	Makes you show as typing on a certain chat. You can specify an username or a chat/user id. If none is given, it will work in current chat.
+	It works by sending a chat action every 4 seconds (they last 5), but a custom interval can be specified with `-i`.
+	You can specify for how long chat actions should be sent with a packed string like this : \
+	`8y3d4h15m3s` (years, days, hours, minutes, seconds), any individual token can be given in any position \
+	and all are optional, it can just be `30s` or `5m`. If you want to include spaces, wrap the 'time' string in `\"`.
+	A different chat action from 'typing' can be specified with `-a`. Available chat actions are: `typing`, `upload_photo`, \
+	`record_video`, `upload_video`, `record_audio`, `upload_audio`, `upload_document`, `find_location`, `record_video_note`, \
+	`upload_video_note`, `choose_contact`, `playing`, `speaking`, `cancel`.
+	You can terminate ongoing typing with `-stop`, but if more than one is running, a random one will be stopped."
+	"""
 	global TYPING_INTERRUPT
 	if "-stop" in message.command["flags"]:
 		TYPING_INTERRUPT = True
@@ -144,19 +150,25 @@ async def typing_cmd(client, message):
 	asyncio.get_event_loop().create_task(fake_typing(client, tgt, cycles, interval, action, message))
 	await edit_or_reply(message, f"` → ` {action} ...")
 	
-HELP.add_help(["everyone"], "will mention everyone in the chat",
-			"will mention every member in current chat. A new message will be sent for the mentions." +
-			"This is super lame, don't abuse.")
+@HELP.add()
 @alemiBot.on_message(is_superuser & filterCommand("everyone", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 async def mass_mention(client, message):
+	"""mention everyone in current chat
+
+	Will send messages mentioning every member in current chat.
+	Since edits won't trigger mentions, a new message is always sent.
+	There can be max 50 mentions in a single message, so for groups with bigger member count, \
+	more than 1 message will be sent.
+	This is super lame.
+	"""
 	msg = await edit_or_reply(message, "` → ` Looking up members")
 	n = 0
 	text = ""
 	async for member in message.chat.iter_members():
 		uname = get_username(member.user, mention=True)
-		if len(text + uname) >= 4096 or n >= 100: # I think you can mention max 100 ppl per message?
+		if len(text + uname) >= 4096 or n >= 50:
 			await msg.edit(text)
 			n = 0
 			text = ""
@@ -165,15 +177,18 @@ async def mass_mention(client, message):
 	if len(text) > 0:
 		await msg.reply(text)
 
-HELP.add_help(["ss", "screenshot"], "send screenshot notification",
-			"--only works in private chats!-- Notify other user in a private chat that a screenshot " +
-			"was taken. Add flag `-0` to make it not specify any particular message. Credits to " +
-			"[ColinShark/Pyrogram-Snippets](https://github.com/ColinShark/Pyrogram-Snippets).",
-			args="[-0]")
+@HELP.add()
 @alemiBot.on_message(filters.private & is_superuser & filterCommand(["ss", "screenshot"], list(alemiBot.prefixes), flags=["-0"]))
 @report_error(logger)
 @set_offline
 async def screenshot_cmd(client, message):
+	"""send screenshot notification
+
+	**Only works in private chats!**
+	Notify other user in a private chat that a screenshot was taken.
+	Add flag `-0` to make it not specify any particular message.
+	Credits to [ColinShark/Pyrogram-Snippets](https://github.com/ColinShark/Pyrogram-Snippets).
+	"""
 	await client.send(
 		SendScreenshotNotification(
 			peer=await client.resolve_peer(message.chat.id),
@@ -185,20 +200,22 @@ async def screenshot_cmd(client, message):
 
 INTERRUPT_SPAM = False
 
-HELP.add_help(["spam", "flood"], "pretty self explainatory",
-			"will send many (`-n`) messages in this chat at a specific (`-t`) interval. " +
-			"If no number is given, will default to 3. If no interval is specified, " +
-			"messages will be sent as soon as possible. You can reply to a message and " +
-			"all spammed msgs will reply to that one too. If you add `-delme`, messages will be " +
-			"immediately deleted. To stop an ongoing spam, you can do `.spam -cancel`.",
-			args="[-stop] [-n <n>] [-t <t>] <text>")
-@alemiBot.on_message(is_superuser & filterCommand("spam", list(alemiBot.prefixes), options={
+@HELP.add(cmd="<text>")
+@alemiBot.on_message(is_superuser & filterCommand(["spam", "flood"], list(alemiBot.prefixes), options={
 	"number" : ["-n"],
 	"time" : ["-t"],
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
 async def spam(client, message): # TODO start another task so that it doesn't stop from rebooting
+	"""pretty self explainatory
+
+	Will send many (`-n`) messages in this chat at a specific (`-t`) interval.
+	If no number is given, will default to 3. If no interval is specified, messages will be sent as soon as possible.
+	You can reply to a message and all spammed msgs will reply to that one too.
+	If flag `-delme` is added, messages will be immediately deleted.
+	To stop an ongoing spam, you can do `.spam -stop`.
+	"""
 	global INTERRUPT_SPAM
 	args = message.command
 	if "-stop" in args["flags"]:
@@ -218,7 +235,6 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	elif text.split(" ", 1)[0].isnumeric(): # this is to support how it worked originally
 		number = int(text.split(" ", 1)[0])
 		text = text.split(" ", 1)[1]
-	logger.info(f"Spamming \"{text}\" for {number} times")
 	extra = {}
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
