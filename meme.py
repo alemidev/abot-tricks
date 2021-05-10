@@ -68,7 +68,6 @@ async def meme_cmd(client, message):
 	"""
 	batchsize = max(min(int(message.command["batch"] or 10), 10), 2)
 	reply_to = message.message_id
-	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	if is_me(message) and message.reply_to_message is not None:
 		reply_to = message.reply_to_message.message_id
 	if message.command["-stats"]:
@@ -77,7 +76,6 @@ async def meme_cmd(client, message):
 			"du", "-b", "data/memes",
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.STDOUT)
-		await prog.tick()
 		stdout, _stderr = await proc_meme.communicate()
 		memesize = float(stdout.decode('utf-8').split("\t")[0])
 		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
@@ -92,7 +90,6 @@ async def meme_cmd(client, message):
 		name = message.command[0]
 		memes = [ s for s in os.listdir("data/memes")
 					if s.lower().startswith(name) ]
-		await prog.tick()
 		if len(memes) > 0:
 			fname = memes[0]
 			await send_media_appropriately(client, message, fname, reply_to)
@@ -100,6 +97,7 @@ async def meme_cmd(client, message):
 			await edit_or_reply(message, f"`[!] → ` no meme named {message.command[0]}")
 	else: 
 		if "batch" in message.command:
+			prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 			memes = []
 			while len(memes) < batchsize:
 				await prog.tick()
