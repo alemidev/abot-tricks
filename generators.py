@@ -130,6 +130,7 @@ async def qrcode_cmd(client, message):
 	bg_color = message.command["back"] or "black"
 	fg_color = message.command["front"] or "white"
 	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
+	await prog.tick()
 	qr = qrcode.QRCode(
 		version=size,
 		error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -169,6 +170,7 @@ async def color_cmd(client, message):
 	else:
 		return await edit_or_reply(message, "`[!] → ` Not enough args given")
 	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
+	await prog.tick()
 	image = Image.new("RGB", (200, 200), clr)
 	color_io = io.BytesIO()
 	color_io.name = "color.jpg"
@@ -212,13 +214,14 @@ async def voice_cmd(client, message):
 		text = re.sub(r"-delme(?: |)(?:[0-9]+|)", "", message.command.text)
 	else:
 		return await edit_or_reply(message, "`[!] → ` No text given")
+	prog = ProgressChatAction(client, message.chat.id, action="record_audio")
 	lang = message.command["lang"] or "en"
 	slow = bool(message.command["-slow"])
 	if message.reply_to_message is not None:
 		opts["reply_to_message_id"] = message.reply_to_message.message_id
 	elif not is_me(message):
 		opts["reply_to_message_id"] = message.message_id
-	prog = ProgressChatAction(client, message.chat.id, action="record_audio")
+	await prog.tick()
 	gTTS(text=text, lang=lang, slow=slow).save("data/tts.mp3")
 	if message.command["-mp3"]:
 		await client.send_audio(message.chat.id, "data/tts.mp3", progress=prog.tick, **opts)
