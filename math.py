@@ -28,18 +28,17 @@ HELP = HelpCategory("MATH")
 @alemiBot.on_message(is_allowed & filterCommand(["expr", "math"], list(alemiBot.prefixes), flags=["-latex"]))
 @report_error(logger)
 @set_offline
-async def expr(client, message):
+async def expr_cmd(client, message):
 	"""convert to LaTeX formula
 
 	This command accepts sympy syntax and will generate a LaTeX formula as image.
 	Add flag `-latex` to directly pass LaTeX.
 	"""
-	args = message.command
-	if "arg" not in args:
-		return # nothing to do!
-	expr = args["arg"]
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	expr = message.command.text
 	await client.send_chat_action(message.chat.id, "upload_document")
-	if "-latex" in args["flags"]:
+	if message.command["-latex"]:
 		preview(expr, viewer='file', filename='expr.png', dvioptions=["-T", "bbox", "-D 300", "--truecolor", "-bg", "Transparent"])
 	else:
 		res = parse_expr(expr)
@@ -52,22 +51,21 @@ async def expr(client, message):
 @alemiBot.on_message(is_allowed & filterCommand(["plot", "graph"], list(alemiBot.prefixes), flags=["-3d"]))
 @report_error(logger)
 @set_offline
-async def graph(client, message):
+async def graph_cmd(client, message):
 	"""plot provided function
 
 	This command will run sympy `plot` and return result as image.
 	You can add the `-3d` argument to plot in 3d (pass functions with 3 variables!)
 	"""
-	args = message.command
-	if "arg" not in args:
-		return # nothing to plot
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
 	await client.send_chat_action(message.chat.id, "upload_document")
-	expr = args["arg"]
+	expr = message.command.text
 	eq = []
 	for a in expr.split(", "):
 		eq.append(parse_expr(a).simplify())
 
-	if "-3d" in args["flags"]:
+	if message.command["-3d"]:
 		plot3d(*eq, show=False).save("graph.png")
 	else:
 		plot(*eq, show=False).save("graph.png")
@@ -87,9 +85,9 @@ async def solve_cmd(client, message):
 	Systems are accepted too!
 	Add flag `-simpl` to simplify your input (won't work on systems).
 	"""
-	if "arg" not in message.command:
-		return await edit_or_reply(message, "`[!] → ` No arg given")
-	expr = message.command["arg"]
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	expr = message.command.text
 	in_expr = parse_expr(expr).simplify()
 	res = solve(in_expr)
 	out = f"` → {str(in_expr)}`\n```" + str(res) + "```"
