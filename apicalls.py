@@ -48,10 +48,10 @@ async def convert_cmd(client, message):
 	Conversion tool. Accepts many units, like `.convert 52 °C °F` \
 	or `.convert 2.78 daN*mm^2 mN*µm^2`.
 	"""
-	if "cmd" not in message.command or len(message.command["cmd"]) < 3:
+	if len(message.command) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
-	res = converts(message.command["cmd"][0] + " " + message.command["cmd"][1], message.command["cmd"][2])
-	await edit_or_reply(message, f"` → ` {res} {message.command['cmd'][2]}")
+	res = converts(message.command[0] + " " + message.command[1], message.command[2])
+	await edit_or_reply(message, f"` → ` {res} {message.command[2]}")
 
 @HELP.add(cmd="<val> <from> <to>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes)))
@@ -63,10 +63,10 @@ async def currency_convert_cmd(client, message):
 	Currency conversion tool. Accept many currency tickers, like `.convert 1 btc us`.
 	Will use Google Currency for values.
 	"""
-	if "cmd" not in message.command or len(message.command["cmd"]) < 3:
+	if len(message.command) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	await client.send_chat_action(message.chat.id, "choose_contact")
-	res = json.loads(convert(message.command["cmd"][1], message.command["cmd"][2], float(message.command["cmd"][0])))
+	res = json.loads(convert(message.command[1], message.command[2], float(message.command[0])))
 	await edit_or_reply(message, f"` → ` {res['amount']} {res['to']}")
 	await client.send_chat_action(message.chat.id, "cancel")
 
@@ -80,10 +80,10 @@ async def diz_cmd(client, message):
 	Get definition of given word from italian dictionary.
 	Will use www.dizionario-italiano.it.
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	await client.send_chat_action(message.chat.id, "upload_document")
-	arg = message.command["arg"]
+	arg = message.command.text
 	# Use this to get only the meaning 
 	res = italian_dictionary.get_definition(arg) 
 
@@ -103,10 +103,10 @@ async def dic_cmd(client, message):
 	Get definition of given word from English dictionary.
 	Will search on wordnet.princeton.edu.
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	await client.send_chat_action(message.chat.id, "upload_document")
-	arg = message.command["arg"]
+	arg = message.command.text
 	res = dictionary.meaning(arg)
 	if res is None:
 		return await edit_or_reply(message, "` → No match`")
@@ -132,11 +132,11 @@ async def urbandict_cmd(client, message):
 	Number of results to return can be specified with `-r`, \
 	will default to only one (top definition).
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
-	n = int(message.command["results"]) if "results" in message.command else 1
+	n = int(message.command["results"] or 1)
 	await client.send_chat_action(message.chat.id, "upload_document")
-	res = UClient.get_definition(message.command["arg"])
+	res = UClient.get_definition(message.command.text)
 	if len(res) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not found")
 	out = ""
@@ -161,13 +161,13 @@ async def wiki_cmd(client, message):
 	By default, only first 1000 characters will be printed, a different amount \
 	can be specified with `-max`
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
-	lang = message.command["lang"] if "lang" in message.command else "en"
-	limit = int(message.command["limit"]) if "limit" in message.command else 1000
+	lang = message.command["lang"] or "en"
+	limit = int(message.command["limit"] or 1000)
 	await client.send_chat_action(message.chat.id, "upload_document")
 	Wikipedia = wikipediaapi.Wikipedia(lang)
-	page = Wikipedia.page(message.command["arg"])
+	page = Wikipedia.page(message.command.text)
 	if not page.exists():
 		return await edit_or_reply(message, "`[!] → ` No results")
 	text = page.text if len(page.summary) < limit else page.summary
@@ -193,18 +193,17 @@ async def translate_cmd(client, message):
 	Only `bing` works as of now and is the default.
 	The lang codes must be 2 letter long (en, ja...)
 	"""
-	args = message.command
-	if "arg" not in args and message.reply_to_message is None:
+	if len(message.command) < 1 and not message.reply_to_message:
 		return await edit_or_reply(message, "`[!] → ` Nothing to translate")
 	tr_options = {}
 	# lmao I can probably pass **args directly
-	if "src" in args:
-		tr_options["from_language"] = args["src"]
-	if "dest" in args:
-		tr_options["to_language"] = args["dest"]
-	engine = args["engine"] if "engine" in args else "bing"
+	if "src" in message.command:
+		tr_options["from_language"] = message.command["src"]
+	if "dest" in message.command:
+		tr_options["to_language"] = message.command["dest"]
+	engine = message.command["engine"] or "bing"
 	await client.send_chat_action(message.chat.id, "find_location")
-	q = message.reply_to_message.text if message.reply_to_message is not None else args["arg"]
+	q = message.reply_to_message.text if message.reply_to_message is not None else message.command.text
 	out = "`[!] → ` Unknown engine"
 	if engine == "google":
 		out = "`[!] → ` As of now, this hangs forever, don't use yet!"
@@ -225,9 +224,9 @@ async def lmgtfy(client, message):
 
 	Generates a `Let Me Google That For You` link
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
-	arg = parse.quote_plus(message.command["arg"])
+	arg = parse.quote_plus(message.command.text)
 	await edit_or_reply(message, f"<code> → </code> http://letmegooglethat.com/?q={arg}",
 										disable_web_page_preview=True, parse_mode="html")
 
@@ -248,14 +247,14 @@ async def weather_cmd(client, message):
 	for awesome site, remember you can `curl wttr.in` in terminal.
 	Result language can be specified with `-l`.
 	"""
-	if "arg" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	# APIKEY = alemiBot.config.get("weather", "apikey", fallback="")
 	# if APIKEY == "":
 	#	  return await edit_or_reply(message, "`[!] → ` No APIKEY provided in config")
 	await client.send_chat_action(message.chat.id, "find_location")
-	q = message.command["arg"]
-	lang = message.command["lang"] if "lang" in message.command else "en"
+	q = message.command.text
+	lang = message.command["lang"] or "en"
 	r = requests.get(f"https://wttr.in/{q}?mnTC0&lang={lang}")
 	await edit_or_reply(message, "<code> → " + r.text + "</code>", parse_mode="html")
 	# # Why bother with OpenWeatherMap?
@@ -286,7 +285,7 @@ async def transcribe_cmd(client, message):
 	await client.send_chat_action(message.chat.id, "record_audio")
 	msg = await edit_or_reply(message, "` → ` Working...")
 	path = None
-	lang = message.command["lang"] if "lang" in message.command else "en-US"
+	lang = message.command["lang"] or "en-US"
 	if message.reply_to_message and message.reply_to_message.voice:
 		path = await client.download_media(message.reply_to_message)
 	elif message.voice:
@@ -320,9 +319,9 @@ async def ocr_cmd(client, message):
 	Add the `-json` flag to get raw result.
 	"""
 	payload = {
-		'isOverlayRequired': "-overlay" in message.command["flags"],
+		'isOverlayRequired': bool(message.command["-overlay"]),
 		'apikey': alemiBot.config.get("ocr", "apikey", fallback=""),
-		'language': message.command["lang"] if "lang" in message.command else "eng"
+		'language': message.command["lang"] or "eng",
 	}
 	if payload["apikey"] == "":
 		return await edit_or_reply(message, "`[!] → ` No API Key set up")
@@ -334,7 +333,7 @@ async def ocr_cmd(client, message):
 		fpath = await client.download_media(msg, file_name="data/ocr")
 		with open(fpath, 'rb') as f:
 			r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
-		if "-json" in message.command["flags"]:
+		if message.command["-json"]:
 			raw = tokenize_json(json.dumps(json.loads(r.content.decode()), indent=2))
 			await edit_or_reply(message, f"` → `\n{raw}")
 		else:

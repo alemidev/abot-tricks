@@ -53,7 +53,7 @@ async def send_media_appropriately(client, message, fname, reply_to, extra_text=
 @HELP.add(cmd="[<name>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("meme", list(alemiBot.prefixes), options={
 	"batch" : ["-b"]
-}, flags=["-list", "-stat", "-stats"]))
+}, flags=["-list", "-stats"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
@@ -66,13 +66,12 @@ async def meme_cmd(client, message):
 	(only photos will be sent if a batch is requested).
 	Memes can be any filetype.
 	"""
-	args = message.command
-	batch = max(min(int(args["batch"]), 10), 2) if "batch" in args else 0
+	batchsize = max(min(int(message.command["batch"] or 10), 10), 2)
 	reply_to = message.message_id
 	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	if is_me(message) and message.reply_to_message is not None:
 		reply_to = message.reply_to_message.message_id
-	if "-stat" in args["flags"] or "-stats" in args["flags"]:
+	if message.command["-stats"]:
 		memenumber = len(os.listdir("data/memes"))
 		proc_meme = await asyncio.create_subprocess_exec( # ewww this is not cross platform but will do for now
 			"du", "-b", "data/memes",
@@ -82,15 +81,15 @@ async def meme_cmd(client, message):
 		stdout, _stderr = await proc_meme.communicate()
 		memesize = float(stdout.decode('utf-8').split("\t")[0])
 		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
-	elif "-list" in args["flags"]:
+	elif message.command["-list"]:
 		memes = os.listdir("data/memes")
 		memes.sort()
 		out = f"` → ` **Meme list** ({len(memes)} total) :\n[ "
 		out += ", ".join(memes)
 		out += "]"
 		await edit_or_reply(message, out)
-	elif "cmd" in args and args["cmd"][0] != "-delme":
-		name = args["cmd"][0]
+	elif len(message.command) > 0 and (len(message.command) > 1 or message.command[0] != "-delme"):
+		name = message.command[0]
 		memes = [ s for s in os.listdir("data/memes")
 					if s.lower().startswith(name) ]
 		await prog.tick()
@@ -98,11 +97,11 @@ async def meme_cmd(client, message):
 			fname = memes[0]
 			await send_media_appropriately(client, message, fname, reply_to)
 		else:
-			await edit_or_reply(message, f"`[!] → ` no meme named {args['cmd'][0]}")
+			await edit_or_reply(message, f"`[!] → ` no meme named {message.command[0]}")
 	else: 
-		if batch > 0:
+		if "batch" in message.command:
 			memes = []
-			while len(memes) < batch:
+			while len(memes) < batchsize:
 				await prog.tick()
 				fname = secrets.choice(os.listdir("data/memes"))
 				if fname.endswith((".jpg", ".jpeg", ".png")):
@@ -124,7 +123,7 @@ async def steal_cmd(client, message):
 	Either attach an image or reply to one.
 	A name for the meme must be given (and must not contain spaces)
 	"""
-	if "cmd" not in message.command:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No meme name provided")
 	msg = message
 	prog = ProgressChatAction(client, message.chat.id, action="playing")
@@ -139,7 +138,7 @@ async def steal_cmd(client, message):
 			extension = extension[1]
 		else:
 			extension = ".jpg" # cmon most memes will be jpg
-		newname = message.command["cmd"][0] + '.' + extension
+		newname = message.command[0] + '.' + extension
 		os.rename(fpath, "data/memes/" + newname)
 		await edit_or_reply(message, f'` → ` saved meme as {newname}')
 	else:
@@ -180,9 +179,9 @@ async def fry_image(img: Image) -> Image:
 
 	return img
 
-@HELP.add(cmd="[-c <n>]", sudo=False)
+@HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("fry", list(alemiBot.prefixes), options={
-	"count" : ["-c"]
+	"count" : ["-c", "--count"],
 }))
 @report_error(logger)
 @set_offline
@@ -194,25 +193,22 @@ async def deepfry_cmd(client, message):
 	The number of frying rounds can be specified with `-c`. Will default to 1.
 	Code from https://github.com/Ovyerus/deeppyer.
 	"""
-	args = message.command
 	target = message.reply_to_message if message.reply_to_message is not None else message
 	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	if target.media:
 		msg = await edit_or_reply(message, "` → ` Downloading...")
-		count = 1
-		if "count" in args:
-			count = int(args["count"])
+		count = int(message.command["count"] or 1)
 		fpath = await client.download_media(target, file_name="tofry", progress=prog.tick)
-		await msg.edit(get_text(message) + "\n` → ` Downloading [OK]\n` → ` Frying...")
+		msg.edit(get_text(message) + "\n` → ` Downloading [OK]\n` → ` Frying...")
 		image = Image.open(fpath)
-	
+
 		for _ in range(count):
 			await prog.tick()
 			image = await fry_image(image)
 		if message.from_user is not None and message.from_user.is_self:
 			await msg.edit(get_text(message) +
 				"\n` → ` Downloading [OK]\n` → ` Frying [OK]\n` → ` Uploading...")
-	
+
 		fried_io = io.BytesIO()
 		fried_io.name = "fried.jpg"
 		image.save(fried_io, "JPEG")
@@ -266,10 +262,8 @@ async def ascii_cmd(client, message):
 	msg = message
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
-	width = 120
 	prog = ProgressChatAction(client, message.chat.id, action="upload_document")
-	if "cmd" in message.command:
-		width = int(message.command["cmd"][0])
+	width = int(message.command[0] or 120)
 	if msg.media:
 		fpath = await client.download_media(msg, file_name="toascii")
 		image = Image.open(fpath)
@@ -308,15 +302,17 @@ async def pasta_cmd(client, message):
 	Getting a good pasta collection is up to you, make sure to `.r mkdir data/pastas` and `wget` some cool pastas in there!
 	"""
 	global INTERRUPT_PASTA
-	if "-stop" in message.command["flags"]:
+	if message.command["-stop"]:
 		INTERRUPT_PASTA = True
 		return
-	sep = message.command["separator"] if "separator" in message.command else "\n"
-	intrv = float(message.command["interval"]) if "interval" in message.command else 2
-	monospace = "-mono" in message.command["flags"]
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	sep = message.command["separator"] or "\n"
+	intrv = float(message.command["interval"] or 2)
+	monospace = bool(message.command["-mono"])
 	prog = ProgressChatAction(client, message.chat.id, action="typing")
-	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if "-edit" in message.command["flags"] else None
-	with open(message.command["cmd"][0], "rb") as f:
+	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if bool(message.command["-edit"]) else None
+	with open(message.command[0], "rb") as f:
 		for section in re.split(sep, f.read().decode('utf-8','ignore')):
 			for chunk in batchify(section, 4090):
 				if chunk.strip() == "":

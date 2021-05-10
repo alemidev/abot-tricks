@@ -55,31 +55,30 @@ async def rand_cmd(client, message):
 	If a number is given, it will choose a value from 1 to <n>, both included.
 	You can specify how many extractions to make with `-n`.
 	"""
-	args = message.command
 	res = []
 	times = 1
 	out = ""
 	maxval = None
-	if "arg" in args:
+	if len(message.command) > 1:
 		pattern = r"(?P<batch>[0-9]*)d(?P<max>[0-9]+)"
-		m = re.search(pattern, args["arg"])
-		if m is not None:
+		m = re.search(pattern, message.command.text)
+		if m:
 			maxval = int(m["max"])
 			if m["batch"] != "":
 				times = int(m["batch"])
-		elif len(args["cmd"]) == 1 and args["cmd"][0].isnumeric():
-			maxval = int(args["cmd"][0])
-	if "batchsize" in args:
-		times = int(args["batchsize"]) # overrule dice roller formatting
+		elif message.command[0].isnumeric():
+			maxval = int(message.command[0])
+	if "batchsize" in message.command:
+		times = int(message.command["batchsize"]) # overrule dice roller formatting
 		
 	if maxval is not None:
 		for _ in range(times):
 			res.append(secrets.randbelow(maxval) + 1)
 		if times > 1:
 			out += f"`→ Rolled {times}d{maxval}` : **{sum(res)}**\n"
-	elif "cmd" in args:
+	elif len(message.command) > 0:
 		for _ in range(times):
-			res.append(secrets.choice(args['cmd']))
+			res.append(secrets.choice(message.command.arg))
 		if times > 1: # This is kinda ugly but pretty handy
 			res_count = Counter(res).most_common()
 			max_times = res_count[0][1]
@@ -101,7 +100,7 @@ async def rand_cmd(client, message):
 		for r in res:
 			out += f"` → ` ** {r} **\n"
 	else:
-		out += f"` → ` [ " + " ".join(str(r) for r in res) + " ]"
+		out += "` → ` [ " + " ".join(str(r) for r in res) + " ]"
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<text>", sudo=False)
@@ -121,15 +120,14 @@ async def qrcode_cmd(client, message):
 	Size of specific boxes can be specified with `-box`, image border with `-border`, qrcode size with `-size`.
 	QR colors can be specified too: background with `-b` and front color with `-f`
 	"""
-	args = message.command
-	if "arg" not in args:
-		return await edit_or_reply(message, "`[!] → ` No text given")
-	text = args["arg"].replace("-delme", "") # just in case
-	size = int(args["size"]) if "size" in args else None
-	box_size = int(args["boxsize"]) if "boxsize" in args else 10
-	border = int(args["border"]) if "border" in args else 4
-	bg_color = args["back"] if "back" in args else "black"
-	fg_color = args["front"] if "front" in args else "white"
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	text = message.command.text.replace("-delme", "") # just in case
+	size = int(message.command["size"]) if "size" in message.command else None
+	box_size = int(message.command["boxsize"] or 10)
+	border = int(message.command["border"] or 4)
+	bg_color = message.command["back"] or "black"
+	fg_color = message.command["front"] or "white"
 	await client.send_chat_action(message.chat.id, "upload_photo")
 	qr = qrcode.QRCode(
 		version=size,
@@ -160,11 +158,11 @@ async def color_cmd(client, message):
 	Each channel can range from 0 to 256.
 	"""
 	clr = None
-	if "cmd" in message.command:
-		if len(message.command["cmd"]) > 2:
-			clr = tuple([int(k) for k in message.command["cmd"]][:3])
+	if len(message.command) > 0:
+		if len(message.command) > 2:
+			clr = tuple([ int(k) for k in message.command.arg[:3] ])
 		else:
-			clr = message.command["cmd"][0]
+			clr = message.command[0]
 			if not clr.startswith("#"):
 				clr = "#" + clr
 	else:
@@ -195,7 +193,7 @@ async def voice_cmd(client, message):
 	"""
 	text = ""
 	opts = {}
-	from_file = "-file" in message.command["flags"]
+	from_file = bool(message.command["-file"])
 	if message.reply_to_message is not None:
 		if from_file and message.reply_to_message.media:
 			fpath = await client.download_media(message.reply_to_message)
@@ -209,19 +207,19 @@ async def voice_cmd(client, message):
 		with open(fpath) as f:
 			text = f.read()
 		os.remove(fpath)
-	elif "arg" in message.command:
-		text = re.sub(r"-delme(?: |)(?:[0-9]+|)", "", message.command["arg"])
+	elif len(message.command) > 0:
+		text = re.sub(r"-delme(?: |)(?:[0-9]+|)", "", message.command.text)
 	else:
 		return await edit_or_reply(message, "`[!] → ` No text given")
-	lang = message.command["lang"] if "lang" in message.command else "en"
-	slow = "-slow" in message.command["flags"]
+	lang = message.command["lang"] or "en"
+	slow = bool(message.command["-slow"])
 	if message.reply_to_message is not None:
 		opts["reply_to_message_id"] = message.reply_to_message.message_id
 	elif not is_me(message):
 		opts["reply_to_message_id"] = message.message_id
 	await client.send_chat_action(message.chat.id, "record_audio")
 	gTTS(text=text, lang=lang, slow=slow).save("data/tts.mp3")
-	if "-mp3" in message.command["flags"]:
+	if message.command["-mp3"]:
 		await client.send_audio(message.chat.id, "data/tts.mp3", **opts)
 	else:
 		AudioSegment.from_mp3("data/tts.mp3").export("data/tts.ogg", format="ogg", codec="libopus")
@@ -240,28 +238,27 @@ async def location_cmd(client, message):
 	Target location can be specified via latitude and longitude (range [-90,90]) or with an address.
 	If a title is given with the `-t` option, the location will be sent as venue.
 	"""
-	args = message.command
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
 	latitude = 0.0
 	longitude = 0.0
-	if "arg" in args:
-		try:
-			coords = args["arg"].split(" ", 2)
-			latitude = float(coords[0])
-			longitude = float(coords[1])
-		except (ValueError, IndexError):
-			await client.send_chat_action(message.chat.id, "find_location")
-			location = geolocator.geocode(args["arg"])
-			await client.send_chat_action(message.chat.id, "cancel")
-			if location is None:
-				return await edit_or_reply(message, "`[!] → ` Not found")
-			latitude = location.latitude
-			longitude = location.longitude
+	try:
+		latitude = float(message.command[0])
+		longitude = float(message.command[1])
+	except (ValueError, IndexError):
+		await client.send_chat_action(message.chat.id, "find_location")
+		location = geolocator.geocode(message.command.text)
+		await client.send_chat_action(message.chat.id, "cancel")
+		if location is None:
+			return await edit_or_reply(message, "`[!] → ` Not found")
+		latitude = location.latitude
+		longitude = location.longitude
 	if latitude > 90 or latitude < -90 or longitude > 90 or longitude < -90:
 		return await edit_or_reply(message, "`[!] → ` Invalid coordinates")
-	if "title" in args:
-		adr = (args["arg"] if "arg" in args else f"{latitude:.2f} {longitude:.2f}")
+	if "title" in message.command:
+		adr = (message.command.text or f"{latitude:.2f} {longitude:.2f}")
 		await client.send_venue(message.chat.id, latitude, longitude,
-									title=args["title"], address=adr)
+									title=message.command["title"], address=adr)
 	else:
 		await client.send_location(message.chat.id, latitude, longitude)
 
@@ -269,38 +266,34 @@ async def location_cmd(client, message):
 @alemiBot.on_message(is_allowed & filterCommand("figlet", list(alemiBot.prefixes), options={
 	"font" : ["-f", "-font"],
 	"width" : ["-w", "-width"]
-}, flags=["-list", "-r"]))
+}, flags=["-list", "-rand"]))
 @report_error(logger)
 @set_offline
 async def figlet_cmd(client, message):
 	"""make a figlet art
 
-	Run figlet and make a text art. You can specify a font (`-f`), or request a random one (`-r`).
+	Run figlet and make a text art. You can specify a font (`-f <font>`), or request a random one (`-rand`).
 	Get list of available fonts with `-list`.
 	You can specify max figlet width (`-w`), default is 30.
 	"""
-	args = message.command
-	if "-list" in args["flags"]:
+	if message.command["-list"]:
 		msg = f"<code> → </code> <u>Figlet fonts</u> : <b>{len(FIGLET_FONTS)}</b>\n[ "
 		msg += " ".join(FIGLET_FONTS)
 		msg += " ]"
 		return await edit_or_reply(message, msg, parse_mode='html')
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
 
-	if "arg" not in args:
-		return # no text to figlet!
-
-	width = 30
-	if "width" in args:
-		width = int(args["width"])
+	width = int(message.command["width"] or 30)
 	font = "slant"
-	if "-r" in args["flags"]:
+	if message.command["-rand"]:
 		font = secrets.choice(FIGLET_FONTS)
-	elif "font" in args:
-		f = args["font"]
+	elif "font" in message.command:
+		f = message.command["font"]
 		if f != "" and f in FIGLET_FONTS:
 			font = f
 
-	result = pyfiglet.figlet_format(args["arg"], font=font, width=width)
+	result = pyfiglet.figlet_format(message.command.text, font=font, width=width)
 	await edit_or_reply(message, "<code> →\n" + result + "</code>", parse_mode="html")
 
 @HELP.add(sudo=False)
@@ -313,7 +306,7 @@ async def fortune_cmd(client, message):
 	Run `fortune` on terminal to get a random sentence. Like fortune bisquits!
 	"""
 	stdout = b""
-	if "-cow" in message.command["flags"]:
+	if message.command["-cow"]:
 		proc = await asyncio.create_subprocess_shell(
 				"fortune | cowsay -W 30",
 				stdout=asyncio.subprocess.PIPE,
@@ -338,7 +331,7 @@ async def fortune_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
-async def cmd_frequency(client, message):
+async def cmd_frequency_iter(client, message):
 	"""search most frequent words in messages
 
 	**[!]** --This will search with telegram API calls--
@@ -348,9 +341,9 @@ async def cmd_frequency(client, message):
 	Will search in current group or any specified with `-g`.
 	A single user can be specified with `-u` : only messages from that user will count if provided.
 	"""
-	results = int(message.command["results"]) if "results" in message.command else 10
-	number = int(message.command["cmd"][0]) if "cmd" in message.command else 100
-	min_len = int(message.command["minlen"]) if "minlen" in message.command else 3
+	results = int(message.command["results"] or 10)
+	number = int(message.command["cmd"][0] or 100)
+	min_len = int(message.command["minlen"] or 3)
 	group = None
 	if "group" in message.command:
 		val = message.command["group"]

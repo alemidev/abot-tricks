@@ -80,17 +80,17 @@ async def steal_username_cmd(client, message):
 	This is very aggressive and will cause FloodWaits super easily if abused, be wary!
 	"""
 	global INTERRUPT_STEALER
-	if "-stop" in message.command["flags"]:
+	if message.command["-stop"]:
 		INTERRUPT_STEALER = True
 		return await edit_or_reply(message, "` → ` Stopping")
-	if "cmd" not in message.command:
-		return await edit_or_reply(message, "`[!] → ` No username given")
-	uname = message.command["cmd"][0]
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	uname = message.command[0]
 	if uname.startswith("@"):
 		uname = uname[1:]
 	chan = await client.create_channel(f"getting {uname}", "This channel was automatically created to occupy an username")
-	time_limit = time.time() + parse_timedelta(message.command["limit"] if "limit" in message.command else "5min").total_seconds()
-	interval = float(message.command["interval"]) if "interval" in message.command else 60
+	time_limit = time.time() + parse_timedelta(message.command["limit"] or "5min").total_seconds()
+	interval = float(message.command["interval"] or 60)
 	await edit_or_reply(message, "` → ` Created channel")
 	asyncio.get_event_loop().create_task(attack_username(client, message, chan, uname, interval, time_limit))
 
@@ -131,15 +131,15 @@ async def typing_cmd(client, message):
 	You can terminate ongoing typing with `-stop`, but if more than one is running, a random one will be stopped."
 	"""
 	global TYPING_INTERRUPT
-	if "-stop" in message.command["flags"]:
+	if message.command["-stop"]:
 		TYPING_INTERRUPT = True
 		return await edit_or_reply(message, "` → ` Stopping")
-	if "cmd" not in message.command:
-		return await edit_or_reply(message, "`[!] → ` No amount of time given")
-	interval = int(message.command["interval"]) if "interval" in message.command else 4
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	interval = float(message.command["interval"] or 4.75)
 	cycles = int(parse_timedelta(message.command["cmd"][0]).total_seconds() / interval)
 	tgt = message.chat.id
-	action = message.command["action"] if "action" in message.command else "typing"
+	action = message.command["action"] or "typing"
 	if "target" in message.command:
 		tgt = message.command["target"]
 		if tgt.startswith("@"):
@@ -192,7 +192,7 @@ async def screenshot_cmd(client, message):
 	await client.send(
 		SendScreenshotNotification(
 			peer=await client.resolve_peer(message.chat.id),
-			reply_to_msg_id=0 if "-0" in message.command["flags"] else message.message_id,
+			reply_to_msg_id=0 if bool(message.command["-0"]) else message.message_id,
 			random_id=client.rnd_id(),
 		)
 	)
@@ -217,24 +217,18 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	To stop an ongoing spam, you can do `.spam -stop`.
 	"""
 	global INTERRUPT_SPAM
-	args = message.command
-	if "-stop" in args["flags"]:
+	if message.command["-stop"]:
 		INTERRUPT_SPAM = True
 		return await edit_or_reply(message, "` → ` Stopping")
-	wait = 0
-	number = 3
-	text = "."
-	delme = False
-	if "arg" in args:
-		delme = args["arg"].endswith("-delme")
-		text = args["arg"].replace("-delme", "") # in case
-	if "time" in args:
-		wait = float(args["time"])
-	if "number" in args:
-		number = int(args["number"])
-	elif text.split(" ", 1)[0].isnumeric(): # this is to support how it worked originally
-		number = int(text.split(" ", 1)[0])
-		text = text.split(" ", 1)[1]
+	wait = float(message.command["time"] or 0)
+	number = int(message.command["number"] or 3)
+	text = message.command.text or "."
+	delme = text.endswith("-delme")
+	if delme:
+		text = text.replace("-delme", "")
+	if len(message.command) > 0 and message.command[0].isnumeric(): # allow older usage
+		number = int(message.command[0])
+		text = text.replace(message.command[0] + " ", "", 1)
 	extra = {}
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
