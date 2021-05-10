@@ -81,9 +81,9 @@ async def merge_cmd(client, message):
 	if not is_me(message.reply_to_message):
 		return await edit_or_reply(message, "`[!] → ` Can't merge message of others")
 	m_id = message.reply_to_message.message_id
-	sep = message.command["separator"] if "separator" in message.command else "\n"
-	del_msg = "-nodel" not in message.command["flags"]
-	max_to_merge = int(message.command["cmd"][0]) if "cmd" in message.command else -1
+	sep = message.command["separator"] or "\n"
+	del_msg = not bool(message.command["-nodel"])
+	max_to_merge = int(message.command[0] or -1)
 	out = ""
 	count = 0
 	async for msg in client.iter_history(message.chat.id, offset_id=m_id, reverse=True):
@@ -123,10 +123,9 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	Add the `-all` flag to group messages from anyone.
 	"""
 	out = ""
-	del_msg = "-nodel" not in message.command["flags"]
-	from_all = "-all" in message.command["flags"]
-	max_to_merge = int(message.command["cmd"][0]) \
-			if "cmd" in message.command and message.command["cmd"][0].isnumeric() else -1
+	del_msg = not bool(message.command["-nodel"])
+	from_all = bool(message.command["-all"])
+	max_to_merge = min(int(message.command[0] or 10), 10)
 	opts = {}
 	if message.reply_to_message:
 		opts["offset_id"] = message.reply_to_message.message_id
@@ -149,9 +148,7 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 				count += 1
 			except ValueError:
 				pass # ignore, go forward
-		if max_to_merge > 0 and count >= max_to_merge:
-			break
-		if count >= 10: # max 10 items anyway
+		if count >= max_to_merge:
 			break
 	media = make_media_group(files)
 	out += " [`OK`]\n` → ` Uploading album"
@@ -180,25 +177,20 @@ async def slowtype_cmd(client, message):
 	If no batch size is given, it will default to 1.
 	If no time is given, it will default to 0.5s.
 	"""
-	args = message.command
-	if "arg" not in args:
+	if len(message.command) < 1:
 		return
-	interval = 0.5
-	batchsize = 1
-	if "time" in args:
-		interval = float(args["time"])
-	if "batch" in args:
-		batchsize = int(args["batch"])
+	intrv = float(message.command["time"] or 0.5)
+	batchsize = int(message.command["batch"] or 1)
 	out = ""
 	msg = message if is_me(message) else await message.reply("` → ` Ok, starting")
 	try:
-		for seg in batchify(args["arg"], batchsize):
+		for seg in batchify(message.command.text, batchsize):
 			out += seg
 			if seg.isspace() or seg == "":
 				continue # important because sending same message twice causes an exception
 			await client.send_chat_action(message.chat.id, "typing")
 			await msg.edit(out, parse_mode=None)
-			await asyncio.sleep(interval) # does this "start" the coroutine early?
+			await asyncio.sleep(intrv) # does this "start" the coroutine early?
 	except:
 		logger.exception("Error in .slow command")
 		pass # msg was deleted probably
@@ -220,12 +212,12 @@ async def zalgo_cmd(client, message):
 	You can increase overrall damage with `-d` (should be a float from 0 to 1, default to 0).
 	The max number of extra characters per letter can be specified with `-max`, with default 10.
 	"""
-	text = re.sub(r"-delme(?: |)(?:[0-9]+|)", "", message.command["raw"])
-	if text == "":
-		return 
-	noise = int(message.command["noise"]) if "noise" in message.command else 1
-	damage = max(min(float(message.command["damage"]), 1.0), 0.0) if "damage" in message.command else 0
-	max_accents = int(message.command["max"]) if "max" in message.command else 10
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	text = re.sub(r"-delme(?: |)(?:[0-9]+|)", "", message.command.text)
+	noise = int(message.command["noise"] or 1)
+	damage = max(min(float(message.command["damage"] or 0), 1.0), 0.0)
+	max_accents = int(message.command["max"] or 10)
 	z = zalgo.zalgo()
 	z.maxAccentsPerLetter = max_accents
 	z.numAccentsUp = ( 1+ (damage*noise), 3 * noise )
@@ -250,9 +242,9 @@ async def randomcase_cmd(client, message):
 
 	Will edit message applying random capitalization to every letter, like the spongebob meme.
 	"""
-	text = message.command["arg"]
-	if text == "":
-		return 
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	text = message.command.text
 	msg = "" # omg this part is done so badly
 	val = 0  # but I want a kinda imbalanced random
 	upper = False
@@ -272,7 +264,7 @@ async def randomcase_cmd(client, message):
 			else:
 				msg += c.upper()
 				upper = True
-	await message.edit(msg)
+	await edit_or_reply(message, msg)
 
 def interval(delta):
 	if delta > 100:
@@ -301,12 +293,7 @@ async def countdown_cmd(client, message):
 		tgt_msg = message
 	else:
 		tgt_msg = await message.reply("` → `")
-	end = time.time() + 5
-	if "cmd" in message.command:
-		try:
-			end = time.time() + float(message.command["cmd"][0])
-		except ValueError:
-			return await tgt_msg.edit("`[!] → ` argument must be a float")
+	end = time.time() + float(message.command[0] or 5)
 	msg = tgt_msg.text + "\n` → Countdown ` **{:.1f}**"
 	last = ""
 	while time.time() < end:
