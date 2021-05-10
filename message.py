@@ -14,11 +14,11 @@ from bot import alemiBot
 from util import batchify
 from util.permission import is_allowed, is_superuser
 from util.getters import get_username, get_text
-from util.message import edit_or_reply, is_me
+from util.message import ProgressChatAction, edit_or_reply, is_me
 from util.text import split_for_window
 from util.command import filterCommand
 from util.time import parse_timedelta
-from util.decorators import report_error, set_offline
+from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
 
 from zalgo_text import zalgo
@@ -113,6 +113,7 @@ def make_media_group(files):
 @alemiBot.on_message(is_superuser & filterCommand(["album"], list(alemiBot.prefixes), flags=["-nodel", "-all"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def album_cmd(client, message): # TODO add uploading_file chat action progress
 	"""join multiple media into one message
 
@@ -126,6 +127,7 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	del_msg = not bool(message.command["-nodel"])
 	from_all = bool(message.command["-all"])
 	max_to_merge = min(int(message.command[0] or 10), 10)
+	prog = ProgressChatAction(client, message.chat.id)
 	opts = {}
 	if message.reply_to_message:
 		opts["offset_id"] = message.reply_to_message.message_id
@@ -135,7 +137,7 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	out += "` → ` Searching media"
 	await edit_or_reply(message, out)
 	if message.reply_to_message and message.media:
-		files.append(await client.download_media(message.edit_or_reply))
+		files.append(await client.download_media(message.edit_or_reply, progress=prog.tick))
 		msgs.append(message.reply_to_message)
 		count += 1
 	async for msg in client.iter_history(message.chat.id, **opts):
@@ -153,7 +155,7 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	media = make_media_group(files)
 	out += " [`OK`]\n` → ` Uploading album"
 	await edit_or_reply(message, out)
-	await client.send_media_group(message.chat.id, media)
+	await client.send_media_group(message.chat.id, media, progress=prog.tick)
 	out += " [`OK`]\n` → ` Cleaning up"
 	await edit_or_reply(message, out)
 	for f in files:

@@ -26,7 +26,7 @@ from util.text import tokenize_json
 from util.permission import is_allowed
 from util.message import edit_or_reply
 from util.command import filterCommand
-from util.decorators import report_error, set_offline
+from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
 
 import logging
@@ -57,6 +57,7 @@ async def convert_cmd(client, message):
 @alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def currency_convert_cmd(client, message):
 	"""convert various currencies
 	
@@ -68,12 +69,12 @@ async def currency_convert_cmd(client, message):
 	await client.send_chat_action(message.chat.id, "choose_contact")
 	res = json.loads(convert(message.command[1], message.command[2], float(message.command[0])))
 	await edit_or_reply(message, f"` → ` {res['amount']} {res['to']}")
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def diz_cmd(client, message):
 	"""search in italian dictionary
 	
@@ -91,12 +92,12 @@ async def diz_cmd(client, message):
 	out += f"```{', '.join(res['grammatica'])} - {res['pronuncia']}```\n\n"
 	out += "\n\n".join(res['definizione'])
 	await edit_or_reply(message, out)
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["dic", "dictionary"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def dic_cmd(client, message):
 	"""search in english dictionary
 
@@ -117,7 +118,6 @@ async def dic_cmd(client, message):
 		out += "\n * ".join(res[k])
 		out += "\n\n"
 	await edit_or_reply(message, out)
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["ud", "urban"], list(alemiBot.prefixes), options={
@@ -125,6 +125,7 @@ async def dic_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def urbandict_cmd(client, message):
 	"""search on urban dictionary
 	
@@ -144,7 +145,6 @@ async def urbandict_cmd(client, message):
 		out +=  f"<code>→ </code> <u>{res[i].word}</u> <code>[+{res[i].upvotes}|{res[i].downvotes}-]</code>\n" + \
 				f"{res[i].definition}\n\n<i>{res[i].example}</i>\n\n"
 	await edit_or_reply(message, out, parse_mode="html")
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("wiki", list(alemiBot.prefixes), options={
@@ -153,6 +153,7 @@ async def urbandict_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def wiki_cmd(client, message):
 	"""search on wikipedia
 	
@@ -174,7 +175,6 @@ async def wiki_cmd(client, message):
 	if len(text) > limit:
 		text = text[:limit] + " ..."
 	await edit_or_reply(message, f"` → {page.title}`\n{text}\n` → ` {page.fullurl}")
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="[<text>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["translate", "tran", "tr"], list(alemiBot.prefixes), options={
@@ -184,6 +184,7 @@ async def wiki_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def translate_cmd(client, message):
 	"""translate to/from
 
@@ -213,7 +214,6 @@ async def translate_cmd(client, message):
 	elif engine == "bing":
 		out = "` → ` " + ts.bing(q, **tr_options)
 	await edit_or_reply(message, out)
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("lmgtfy", list(alemiBot.prefixes)))
@@ -240,6 +240,7 @@ WTTR_STRING = "`→ {loc} `\n` → `**{desc}**\n` → ` {mintemp:.0f}C - {maxtem
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def weather_cmd(client, message):
 	"""get weather of location
 	
@@ -266,7 +267,6 @@ async def weather_cmd(client, message):
 	#												  maxtemp=r["main"]["temp_max"] - 272.15,
 	#												  hum=r["main"]["humidity"], press=r["main"]["pressure"],
 	#												  wspd=r["wind"]["speed"], vis=r["visibility"], cld=r["clouds"]["all"]))
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["scribe"], list(alemiBot.prefixes), options={
@@ -274,6 +274,7 @@ async def weather_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def transcribe_cmd(client, message):
 	"""transcribes a voice message
 
@@ -300,7 +301,6 @@ async def transcribe_cmd(client, message):
 	out = "` → `" + recognizer.recognize_google(audio, language=lang,
 						key=alemiBot.config.get("scribe", "key", fallback=None))
 	await edit_or_reply(msg, out)
-	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["ocr"], list(alemiBot.prefixes), options={
@@ -308,6 +308,7 @@ async def transcribe_cmd(client, message):
 }, flags=["-overlay", "-json"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def ocr_cmd(client, message):
 	"""read text in photos
 
@@ -344,7 +345,6 @@ async def ocr_cmd(client, message):
 			await edit_or_reply(message, f"` → ` {out}")
 	else:
 		return await edit_or_reply(message, "`[!] → ` No media given")
-	await client.send_chat_action(message.chat.id, "cancel")
 
 # HELP.add_help(["link"], "expand a reward url",
 # 				"expand given url using `linkexpander.com`.", 

@@ -17,11 +17,11 @@ from pyrogram import filters
 from bot import alemiBot
 
 from util.permission import is_allowed
-from util.message import edit_or_reply, is_me
+from util.message import ProgressChatAction, edit_or_reply, is_me
 from util.getters import get_text, get_username, get_channel
 from util.text import tokenize_json, cleartermcolor
 from util.command import filterCommand
-from util.decorators import report_error, set_offline
+from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
 
 from PIL import Image
@@ -113,6 +113,7 @@ async def rand_cmd(client, message):
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def qrcode_cmd(client, message):
 	"""generate a qr code
 
@@ -128,7 +129,7 @@ async def qrcode_cmd(client, message):
 	border = int(message.command["border"] or 4)
 	bg_color = message.command["back"] or "black"
 	fg_color = message.command["front"] or "white"
-	await client.send_chat_action(message.chat.id, "upload_photo")
+	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	qr = qrcode.QRCode(
 		version=size,
 		error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -143,13 +144,13 @@ async def qrcode_cmd(client, message):
 	qr_io.name = "qrcode.jpg"
 	image.save(qr_io, "JPEG")
 	qr_io.seek(0)
-	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.message_id)
-	await client.send_chat_action(message.chat.id, "cancel")
+	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.message_id, progress=prog.tick)
 
 @HELP.add(cmd="( <hex> | <r> <g> <b> )", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["color"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def color_cmd(client, message):
 	"""send a solid color image
 
@@ -167,14 +168,13 @@ async def color_cmd(client, message):
 				clr = "#" + clr
 	else:
 		return await edit_or_reply(message, "`[!] → ` Not enough args given")
-	await client.send_chat_action(message.chat.id, "upload_photo")
+	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	image = Image.new("RGB", (200, 200), clr)
 	color_io = io.BytesIO()
 	color_io.name = "color.jpg"
 	image.save(color_io, "JPEG")
 	color_io.seek(0)
-	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.message_id)
-	await client.send_chat_action(message.chat.id, "cancel")
+	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.message_id, progress=prog.tick)
 
 @HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["voice"], list(alemiBot.prefixes), options={
@@ -182,6 +182,7 @@ async def color_cmd(client, message):
 }, flags=["-slow", "-mp3", "-file"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def voice_cmd(client, message):
 	"""convert text to voice
 
@@ -217,14 +218,13 @@ async def voice_cmd(client, message):
 		opts["reply_to_message_id"] = message.reply_to_message.message_id
 	elif not is_me(message):
 		opts["reply_to_message_id"] = message.message_id
-	await client.send_chat_action(message.chat.id, "record_audio")
+	prog = ProgressChatAction(client, message.chat.id, action="record_audio")
 	gTTS(text=text, lang=lang, slow=slow).save("data/tts.mp3")
 	if message.command["-mp3"]:
-		await client.send_audio(message.chat.id, "data/tts.mp3", **opts)
+		await client.send_audio(message.chat.id, "data/tts.mp3", progress=prog.tick, **opts)
 	else:
 		AudioSegment.from_mp3("data/tts.mp3").export("data/tts.ogg", format="ogg", codec="libopus")
-		await client.send_voice(message.chat.id, "data/tts.ogg", **opts)
-	await client.send_chat_action(message.chat.id, "cancel")
+		await client.send_voice(message.chat.id, "data/tts.ogg", progress=prog.tick, **opts)
 
 @HELP.add(cmd="(<lat> <long> | <loc>)", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["loc", "location"], list(alemiBot.prefixes), options={
