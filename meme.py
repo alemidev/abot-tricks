@@ -99,12 +99,13 @@ async def meme_cmd(client, message):
 		if "batch" in message.command:
 			prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 			memes = []
+			await prog.tick()
 			while len(memes) < batchsize:
-				await prog.tick()
 				fname = secrets.choice(os.listdir("data/memes"))
 				if fname.endswith((".jpg", ".jpeg", ".png")):
 					memes.append(InputMediaPhoto("data/memes/" + fname))
-			await client.send_media_group(message.chat.id, memes, progress=prog.tick)
+			await client.send_media_group(message.chat.id, memes) # TODO progress!
+			await prog.tick()
 		else:
 			fname = secrets.choice(os.listdir("data/memes"))
 			await send_media_appropriately(client, message, fname, reply_to, extra_text="Random meme : ")
