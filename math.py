@@ -7,9 +7,9 @@ from bot import alemiBot
 
 from util import batchify
 from util.permission import is_allowed
-from util.message import edit_or_reply
+from util.message import ProgressChatAction, edit_or_reply
 from util.command import filterCommand
-from util.decorators import report_error, set_offline
+from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
 
 import sympy
@@ -28,6 +28,7 @@ HELP = HelpCategory("MATH")
 @alemiBot.on_message(is_allowed & filterCommand(["expr", "math"], list(alemiBot.prefixes), flags=["-latex"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def expr_cmd(client, message):
 	"""convert to LaTeX formula
 
@@ -37,20 +38,20 @@ async def expr_cmd(client, message):
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
 	expr = message.command.text
-	await client.send_chat_action(message.chat.id, "upload_document")
+	prog = ProgressChatAction(client, message.chat.id, action="upload_document")
 	if message.command["-latex"]:
 		preview(expr, viewer='file', filename='expr.png', dvioptions=["-T", "bbox", "-D 300", "--truecolor", "-bg", "Transparent"])
 	else:
 		res = parse_expr(expr)
 		preview(res, viewer='file', filename='expr.png', dvioptions=["-T", "bbox", "-D 300", "--truecolor", "-bg", "Transparent"])
 	await client.send_photo(message.chat.id, "expr.png", reply_to_message_id=message.message_id,
-									caption=f"` → {expr} `")
-	await client.send_chat_action(message.chat.id, "cancel")
+									caption=f"` → {expr} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["plot", "graph"], list(alemiBot.prefixes), flags=["-3d"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def graph_cmd(client, message):
 	"""plot provided function
 
@@ -59,7 +60,7 @@ async def graph_cmd(client, message):
 	"""
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
-	await client.send_chat_action(message.chat.id, "upload_document")
+	prog = ProgressChatAction(client, message.chat.id, action="upload_document")
 	expr = message.command.text
 	eq = []
 	for a in expr.split(", "):
@@ -71,8 +72,7 @@ async def graph_cmd(client, message):
 		plot(*eq, show=False).save("graph.png")
 	
 	await client.send_photo(message.chat.id, "graph.png", reply_to_message_id=message.message_id,
-									caption=f"` → {eq} `")
-	await client.send_chat_action(message.chat.id, "cancel")
+									caption=f"` → {eq} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("solve", list(alemiBot.prefixes), flags=["-simpl"]))
