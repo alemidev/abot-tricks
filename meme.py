@@ -14,11 +14,11 @@ from bot import alemiBot
 
 from util import batchify
 from util.permission import is_allowed, is_superuser
-from util.message import edit_or_reply, is_me
+from util.message import ProgressChatAction, edit_or_reply, is_me
 from util.text import order_suffix
 from util.getters import get_text
 from util.command import filterCommand
-from util.decorators import report_error, set_offline
+from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
 
 import logging
@@ -30,23 +30,23 @@ INTERRUPT = False
 # TODO make this an util and maybe pass **kwargs
 async def send_media_appropriately(client, message, fname, reply_to, extra_text=""):
 	if fname.endswith((".jpg", ".jpeg", ".png")):
-		await client.send_chat_action(message.chat.id, "upload_photo")
+		prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 		await client.send_photo(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-								caption=f'` → {extra_text} ` **{fname}**')
+								caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
 	elif fname.endswith((".gif", ".mp4", ".webm")):
-		await client.send_chat_action(message.chat.id, "upload_video")
+		prog = ProgressChatAction(client, message.chat.id, action="upload_video")
 		await client.send_video(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-								caption=f'` → {extra_text} ` **{fname}**')
+								caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
 	elif fname.endswith((".webp", ".tgs")):
-		await client.send_chat_action(message.chat.id, "upload_photo")
-		await client.send_sticker(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to)
+		prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
+		await client.send_sticker(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to, progress=prog.tick)
 	elif fname.endswith((".mp3", ".ogg", ".wav")):
-		await client.send_chat_action(message.chat.id, "upload_audio")
-		await client.send_voice(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to)
+		prog = ProgressChatAction(client, message.chat.id, action="upload_audio")
+		await client.send_voice(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to, progress=prog.tick)
 	else:
-		await client.send_chat_action(message.chat.id, "upload_document")
+		prog = ProgressChatAction(client, message.chat.id, action="upload_document")
 		await client.send_document(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-										caption=f'` → {extra_text} ` **{fname}**')
+										caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
 	await client.send_chat_action(message.chat.id, "cancel")
 	
 
@@ -56,6 +56,7 @@ async def send_media_appropriately(client, message, fname, reply_to, extra_text=
 }, flags=["-list", "-stat", "-stats"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def meme_cmd(client, message):
 	"""get a meme from collection
 
@@ -68,6 +69,7 @@ async def meme_cmd(client, message):
 	args = message.command
 	batch = max(min(int(args["batch"]), 10), 2) if "batch" in args else 0
 	reply_to = message.message_id
+	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	if is_me(message) and message.reply_to_message is not None:
 		reply_to = message.reply_to_message.message_id
 	if "-stat" in args["flags"] or "-stats" in args["flags"]:
@@ -76,6 +78,7 @@ async def meme_cmd(client, message):
 			"du", "-b", "data/memes",
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.STDOUT)
+		await prog.tick()
 		stdout, _stderr = await proc_meme.communicate()
 		memesize = float(stdout.decode('utf-8').split("\t")[0])
 		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
@@ -90,6 +93,7 @@ async def meme_cmd(client, message):
 		name = args["cmd"][0]
 		memes = [ s for s in os.listdir("data/memes")
 					if s.lower().startswith(name) ]
+		await prog.tick()
 		if len(memes) > 0:
 			fname = memes[0]
 			await send_media_appropriately(client, message, fname, reply_to)
@@ -99,11 +103,11 @@ async def meme_cmd(client, message):
 		if batch > 0:
 			memes = []
 			while len(memes) < batch:
+				await prog.tick()
 				fname = secrets.choice(os.listdir("data/memes"))
 				if fname.endswith((".jpg", ".jpeg", ".png")):
-					await client.send_chat_action(message.chat.id, "upload_photo")
 					memes.append(InputMediaPhoto("data/memes/" + fname))
-			await client.send_media_group(message.chat.id, memes)
+			await client.send_media_group(message.chat.id, memes, progress=prog.tick)
 		else:
 			fname = secrets.choice(os.listdir("data/memes"))
 			await send_media_appropriately(client, message, fname, reply_to, extra_text="Random meme : ")
@@ -112,6 +116,7 @@ async def meme_cmd(client, message):
 @alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def steal_cmd(client, message):
 	"""steal a meme
 
@@ -122,10 +127,11 @@ async def steal_cmd(client, message):
 	if "cmd" not in message.command:
 		return await edit_or_reply(message, "`[!] → ` No meme name provided")
 	msg = message
+	prog = ProgressChatAction(client, message.chat.id, action="playing")
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
 	if msg.media:
-		fpath = await client.download_media(msg, file_name="data/memes/") # + message.command["cmd"][0])
+		fpath = await client.download_media(msg, file_name="data/memes/", progress=prog.tick) # + message.command["cmd"][0])
 		# await edit_or_reply(message, '` → ` saved meme as {}'.format(fpath))
 		path, fname = os.path.splitext(fpath) # this part below is trash, im waiting for my PR on pyrogram
 		extension = fname.split(".")
@@ -180,6 +186,7 @@ async def fry_image(img: Image) -> Image:
 }))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def deepfry_cmd(client, message):
 	"""deepfry an image
 
@@ -189,17 +196,18 @@ async def deepfry_cmd(client, message):
 	"""
 	args = message.command
 	target = message.reply_to_message if message.reply_to_message is not None else message
+	prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
 	if target.media:
-		await client.send_chat_action(message.chat.id, "upload_photo")
 		msg = await edit_or_reply(message, "` → ` Downloading...")
 		count = 1
 		if "count" in args:
 			count = int(args["count"])
-		fpath = await client.download_media(target, file_name="tofry")
-		msg.edit(get_text(message) + "\n` → ` Downloading [OK]\n` → ` Frying...")
+		fpath = await client.download_media(target, file_name="tofry", progress=prog.tick)
+		await msg.edit(get_text(message) + "\n` → ` Downloading [OK]\n` → ` Frying...")
 		image = Image.open(fpath)
 	
 		for _ in range(count):
+			await prog.tick()
 			image = await fry_image(image)
 		if message.from_user is not None and message.from_user.is_self:
 			await msg.edit(get_text(message) +
@@ -210,11 +218,10 @@ async def deepfry_cmd(client, message):
 		image.save(fried_io, "JPEG")
 		fried_io.seek(0)
 		await client.send_photo(message.chat.id, fried_io, reply_to_message_id=message.message_id,
-									caption=f"` → Fried {count} time{'s' if count > 1 else ''}`")
+									caption=f"` → Fried {count} time{'s' if count > 1 else ''}`", progress=prog.tick)
 		if message.from_user is not None and message.from_user.is_self:
 			await msg.edit(get_text(message) +
 				"\n` → ` Downloading [OK]\n` → ` Frying [OK]\n` → ` Uploading [OK]")
-		await client.send_chat_action(message.chat.id, "cancel")
 	else:
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
 
@@ -247,6 +254,7 @@ def ascii_image(img:Image, new_width:int=120) -> str:
 @alemiBot.on_message(is_allowed & filterCommand("ascii", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def ascii_cmd(client, message):
 	"""make ascii art of picture
 
@@ -259,6 +267,7 @@ async def ascii_cmd(client, message):
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
 	width = 120
+	prog = ProgressChatAction(client, message.chat.id, action="upload_document")
 	if "cmd" in message.command:
 		width = int(message.command["cmd"][0])
 	if msg.media:
@@ -273,7 +282,7 @@ async def ascii_cmd(client, message):
 			out = io.BytesIO(ascii_result.encode('utf-8'))
 			out.name = "ascii.txt"
 			await client.send_document(message.chat.id, out, reply_to_message_id=message.message_id,
-										caption=f"` → Made ASCII art `")
+										caption=f"` → Made ASCII art `", progress=prog.tick)
 	else:
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
 
@@ -286,6 +295,7 @@ INTERRUPT_PASTA = False
 }, flags=["-stop", "-mono", "-edit"]))
 @report_error(logger)
 @set_offline
+@cancel_chat_action
 async def pasta_cmd(client, message):
 	"""drop a copypasta
 
@@ -304,6 +314,7 @@ async def pasta_cmd(client, message):
 	sep = message.command["separator"] if "separator" in message.command else "\n"
 	intrv = float(message.command["interval"]) if "interval" in message.command else 2
 	monospace = "-mono" in message.command["flags"]
+	prog = ProgressChatAction(client, message.chat.id, action="typing")
 	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if "-edit" in message.command["flags"] else None
 	with open(message.command["cmd"][0], "rb") as f:
 		for section in re.split(sep, f.read().decode('utf-8','ignore')):
@@ -315,6 +326,7 @@ async def pasta_cmd(client, message):
 					chunk = "```" + chunk + "```"
 					p_mode = "markdown"
 
+				await prog.tick()
 				if edit_this:
 					await edit_this.edit(chunk, parse_mode=p_mode)
 				else:
