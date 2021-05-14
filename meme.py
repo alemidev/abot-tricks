@@ -90,7 +90,7 @@ async def meme_cmd(client, message):
 		search = re.compile(message.command[0])
 		for meme in os.listdir("data/memes"):
 			if search.match(meme):
-				return await send_media_appropriately(client, message, fname, reply_to)
+				return await send_media_appropriately(client, message, meme, reply_to)
 		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
 		if "batch" in message.command:
