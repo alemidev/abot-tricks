@@ -284,7 +284,7 @@ async def transcribe_cmd(client, message):
 	You can specify speech recognition language with `-l` (using `RFC5646` language tag format :`en-US`, `it-IT`, ...)
 	"""
 	await client.send_chat_action(message.chat.id, "record_audio")
-	msg = await edit_or_reply(message, "` → ` Working...")
+	msg = await edit_or_reply(message, "`→ ` Working...")
 	path = None
 	lang = message.command["lang"] or "en-US"
 	if message.reply_to_message and message.reply_to_message.voice:
