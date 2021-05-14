@@ -60,7 +60,7 @@ async def send_media_appropriately(client, message, fname, reply_to, extra_text=
 async def meme_cmd(client, message):
 	"""get a meme from collection
 
-	If a name was specified, get meme matching requested name. Otherwise, get random meme.
+	If a name was specified, get meme matching requested name (regex). Otherwise, get random meme.
 	Use flag `-list` to get all meme names and flag `-stats` to get count and disk usage.
 	You can send a bunch of random memes together by specifying how many in the `-b` (batch) option \
 	(only photos will be sent if a batch is requested).
@@ -87,14 +87,11 @@ async def meme_cmd(client, message):
 		out += "]"
 		await edit_or_reply(message, out)
 	elif len(message.command) > 0 and (len(message.command) > 1 or message.command[0] != "-delme"):
-		name = message.command[0]
-		memes = [ s for s in os.listdir("data/memes")
-					if s.lower().startswith(name) ]
-		if len(memes) > 0:
-			fname = memes[0]
-			await send_media_appropriately(client, message, fname, reply_to)
-		else:
-			await edit_or_reply(message, f"`[!] → ` no meme named {message.command[0]}")
+		search = re.compile(message.command[0])
+		for meme in os.listdir("data/memes"):
+			if search.match(meme):
+				return await send_media_appropriately(client, message, fname, reply_to)
+		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
 		if "batch" in message.command:
 			prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
