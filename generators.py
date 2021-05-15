@@ -345,7 +345,7 @@ async def cmd_frequency_iter(client, message):
 	A single user can be specified with `-u` : only messages from that user will count if provided.
 	"""
 	results = int(message.command["results"] or 10)
-	number = int(message.command["cmd"][0] or 100)
+	number = int(message.command[0] or 100)
 	min_len = int(message.command["minlen"] or 3)
 	group = None
 	if "group" in message.command:
