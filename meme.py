@@ -126,7 +126,7 @@ async def steal_cmd(client, message):
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
 	if msg.media:
-		fpath = await client.download_media(msg, file_name="data/memes/", progress=prog.tick) # + message.command["cmd"][0])
+		fpath = await client.download_media(msg, file_name="data/memes/", progress=prog.tick) # + message.command[0])
 		# await edit_or_reply(message, '` → ` saved meme as {}'.format(fpath))
 		path, fname = os.path.splitext(fpath) # this part below is trash, im waiting for my PR on pyrogram
 		extension = fname.split(".")
