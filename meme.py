@@ -14,7 +14,7 @@ from bot import alemiBot
 
 from util import batchify
 from util.permission import is_allowed, is_superuser
-from util.message import ProgressChatAction, edit_or_reply, is_me
+from util.message import ProgressChatAction, edit_or_reply, is_me, send_media_appropriately
 from util.text import order_suffix
 from util.getters import get_text
 from util.command import filterCommand
@@ -26,29 +26,6 @@ logger = logging.getLogger(__name__)
 
 HELP = HelpCategory("MEME")
 INTERRUPT = False
-
-# TODO make this an util and maybe pass **kwargs
-async def send_media_appropriately(client, message, fname, reply_to, extra_text=""):
-	if fname.endswith((".jpg", ".jpeg", ".png")):
-		prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
-		await client.send_photo(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-								caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
-	elif fname.endswith((".gif", ".mp4", ".webm")):
-		prog = ProgressChatAction(client, message.chat.id, action="upload_video")
-		await client.send_video(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-								caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
-	elif fname.endswith((".webp", ".tgs")):
-		prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
-		await client.send_sticker(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to, progress=prog.tick)
-	elif fname.endswith((".mp3", ".ogg", ".wav")):
-		prog = ProgressChatAction(client, message.chat.id, action="upload_audio")
-		await client.send_voice(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to, progress=prog.tick)
-	else:
-		prog = ProgressChatAction(client, message.chat.id, action="upload_document")
-		await client.send_document(message.chat.id, "data/memes/"+fname, reply_to_message_id=reply_to,
-										caption=f'` → {extra_text} ` **{fname}**', progress=prog.tick)
-	await client.send_chat_action(message.chat.id, "cancel")
-	
 
 @HELP.add(cmd="[<name>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("meme", list(alemiBot.prefixes), options={
