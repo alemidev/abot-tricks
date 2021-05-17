@@ -137,7 +137,7 @@ async def typing_cmd(client, message):
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
 	interval = float(message.command["interval"] or 4.75)
-	cycles = int(parse_timedelta(message.command["cmd"][0]).total_seconds() / interval)
+	cycles = int(parse_timedelta(message.command[0]).total_seconds() / interval)
 	tgt = message.chat.id
 	action = message.command["action"] or "typing"
 	if "target" in message.command:

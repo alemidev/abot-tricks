@@ -59,7 +59,7 @@ async def rand_cmd(client, message):
 	times = 1
 	out = ""
 	maxval = None
-	if len(message.command) > 1:
+	if len(message.command) > 0:
 		pattern = r"(?P<batch>[0-9]*)d(?P<max>[0-9]+)"
 		m = re.search(pattern, message.command.text)
 		if m:
@@ -98,7 +98,7 @@ async def rand_cmd(client, message):
 			times = 0
 	if times <= 20:
 		for r in res:
-			out += f"` → ` ** {r} **\n"
+			out += f"` → ` **{r}**\n"
 	else:
 		out += "` → ` [ " + " ".join(str(r) for r in res) + " ]"
 	await edit_or_reply(message, out)
@@ -345,7 +345,7 @@ async def cmd_frequency_iter(client, message):
 	A single user can be specified with `-u` : only messages from that user will count if provided.
 	"""
 	results = int(message.command["results"] or 10)
-	number = int(message.command["cmd"][0] or 100)
+	number = int(message.command[0] or 100)
 	min_len = int(message.command["minlen"] or 3)
 	group = None
 	if "group" in message.command:
