@@ -67,7 +67,7 @@ async def meme_cmd(client, message):
 		search = re.compile(message.command[0])
 		for meme in os.listdir("data/memes"):
 			if search.match(meme):
-				return await send_media(client, message, 'data/memes/' + meme, reply_to_message_id=reply_to,
+				return await send_media(client, message.chat.id, 'data/memes/' + meme, reply_to_message_id=reply_to,
 						caption=f"` → ` **{meme}**")
 		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
@@ -83,7 +83,7 @@ async def meme_cmd(client, message):
 			await prog.tick()
 		else:
 			fname = secrets.choice(os.listdir("data/memes"))
-			await send_media(client, message, 'data/memes/' + fname, reply_to_message_id=reply_to,
+			await send_media(client, message.chat.id, 'data/memes/' + fname, reply_to_message_id=reply_to,
 					caption="` → ` [--random--] **{fname}**")
 
 @HELP.add(cmd="<name>")
