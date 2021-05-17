@@ -59,7 +59,7 @@ async def rand_cmd(client, message):
 	times = 1
 	out = ""
 	maxval = None
-	if len(message.command) > 1:
+	if len(message.command) > 0:
 		pattern = r"(?P<batch>[0-9]*)d(?P<max>[0-9]+)"
 		m = re.search(pattern, message.command.text)
 		if m:
