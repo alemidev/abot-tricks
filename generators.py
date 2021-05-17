@@ -19,7 +19,7 @@ from bot import alemiBot
 from util.permission import is_allowed
 from util.message import ProgressChatAction, edit_or_reply, is_me
 from util.getters import get_text, get_username, get_channel
-from util.text import tokenize_json, cleartermcolor
+from util.text import tokenize_json, cleartermcolor, sep
 from util.command import filterCommand
 from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
@@ -75,7 +75,7 @@ async def rand_cmd(client, message):
 		for _ in range(times):
 			res.append(secrets.randbelow(maxval) + 1)
 		if times > 1:
-			out += f"`→ Rolled {times}d{maxval}` : **{sum(res)}**\n"
+			out += f"`→ ` Rolled `{times}d{maxval}` : **{sum(res)}**\n"
 	elif len(message.command) > 0:
 		for _ in range(times):
 			res.append(secrets.choice(message.command.arg))
@@ -96,11 +96,7 @@ async def rand_cmd(client, message):
 			# this is a very ugly way to prevent the formatted print below
 			res = []
 			times = 0
-	if times <= 20:
-		for r in res:
-			out += f"` → ` **{r}**\n"
-	else:
-		out += "` → ` [ " + " ".join(str(r) for r in res) + " ]"
+	out += "` → ` [ " + " ".join(sep(r) for r in res) + " ]"
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<text>", sudo=False)
