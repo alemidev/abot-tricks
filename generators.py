@@ -98,7 +98,7 @@ async def rand_cmd(client, message):
 			times = 0
 	if times <= 20:
 		for r in res:
-			out += f"` → ` ** {r} **\n"
+			out += f"` → ` **{r}**\n"
 	else:
 		out += "` → ` [ " + " ".join(str(r) for r in res) + " ]"
 	await edit_or_reply(message, out)
