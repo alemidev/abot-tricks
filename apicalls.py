@@ -79,14 +79,14 @@ async def currency_convert_cmd(client, message):
 		res = json.loads(convert(from_ticker, to_ticker, val))
 	if res["converted"]:
 		to_ticker = res["to"]
-		converted_val = res["amount"]
+		converted_val = float(res["amount"])
 	else:
 		res = cryptocompare.get_price(from_ticker, currency=to_ticker)
 		if not res:
 			return await edit_or_reply(message, "`[!] → ` Invalid currency ticker")
 		from_ticker = list(res.keys())[0]
 		to_ticker = list(res[from_ticker].keys())[0]
-		converted_val = res[from_ticker][to_ticker]
+		converted_val = float(res[from_ticker][to_ticker])
 	await edit_or_reply(message, f"` → ` {sep(converted_val)} {to_ticker}")
 
 @HELP.add(cmd="<word>", sudo=False)
