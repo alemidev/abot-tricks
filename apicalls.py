@@ -54,7 +54,7 @@ async def convert_cmd(client, message):
 	res = converts(message.command[0] + " " + message.command[1], message.command[2])
 	await edit_or_reply(message, f"` → ` {res} {message.command[2]}")
 
-@HELP.add(cmd="<val> <from> <to>", sudo=False)
+@HELP.add(cmd="<from> [<val>] [<to>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes), flags=["-crypto"]))
 @report_error(logger)
 @set_offline
@@ -62,16 +62,17 @@ async def convert_cmd(client, message):
 async def currency_convert_cmd(client, message):
 	"""convert various currencies
 	
-	Currency conversion tool. Accept many currency tickers, like `.convert 1 btc usd`.
+	Currency price checker and conversion tool. Accept many currency tickers, like `.currency btc` \
+	or `.currency btc 20 eur`.
 	Will use Google Currency for values, and if currency is not found there, cryptocompare.
 	Add flag `-crypto` to directly search cryptocompare.
 	"""
-	if len(message.command) < 3:
+	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	await client.send_chat_action(message.chat.id, "choose_contact")
-	val = float(message.command[0])
-	from_ticker = message.command[1]
-	to_ticker = message.command[2]
+	val = float(message.command[1] or 1.0)
+	from_ticker = message.command[0]
+	to_ticker = message.command[2] or "USD"
 	converted_val = 0.0
 	res = {"converted" : False}
 	if not bool(message.command["-crypto"]):
