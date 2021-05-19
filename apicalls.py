@@ -1,10 +1,6 @@
 import os
-import re
 import json
-import asyncio
 from urllib import parse
-
-from pyrogram import filters
 
 from bot import alemiBot
 
@@ -52,7 +48,7 @@ async def convert_cmd(client, message):
 	if len(message.command) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	res = converts(message.command[0] + " " + message.command[1], message.command[2])
-	await edit_or_reply(message, f"` → ` {res} {message.command[2]}")
+	await edit_or_reply(message, f"` → ` **{res}** {message.command[2]}")
 
 @HELP.add(cmd="<from> [<val>] [<to>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes), flags=["-crypto"]))
@@ -86,8 +82,8 @@ async def currency_convert_cmd(client, message):
 			return await edit_or_reply(message, "`[!] → ` Invalid currency ticker")
 		from_ticker = list(res.keys())[0]
 		to_ticker = list(res[from_ticker].keys())[0]
-		converted_val = float(res[from_ticker][to_ticker])
-	await edit_or_reply(message, f"` → ` {sep(converted_val)} {to_ticker}")
+		converted_val = val * float(res[from_ticker][to_ticker])
+	await edit_or_reply(message, f"` → ` **{sep(converted_val)}** {to_ticker}")
 
 @HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"], list(alemiBot.prefixes)))
