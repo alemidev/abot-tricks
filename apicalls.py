@@ -10,6 +10,7 @@ from bot import alemiBot
 
 import wikipediaapi
 import italian_dictionary
+import cryptocompare
 from PyDictionary import PyDictionary
 from udpy import UrbanClient
 import translators as ts
@@ -22,7 +23,7 @@ from pydub import AudioSegment
 import speech_recognition as sr
 
 from util import batchify
-from util.text import tokenize_json
+from util.text import tokenize_json, sep
 from util.permission import is_allowed
 from util.message import edit_or_reply
 from util.command import filterCommand
@@ -54,21 +55,38 @@ async def convert_cmd(client, message):
 	await edit_or_reply(message, f"` → ` {res} {message.command[2]}")
 
 @HELP.add(cmd="<val> <from> <to>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes), flags=["-crypto"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
 async def currency_convert_cmd(client, message):
 	"""convert various currencies
 	
-	Currency conversion tool. Accept many currency tickers, like `.convert 1 btc us`.
-	Will use Google Currency for values.
+	Currency conversion tool. Accept many currency tickers, like `.convert 1 btc usd`.
+	Will use Google Currency for values, and if currency is not found there, cryptocompare.
+	Add flag `-crypto` to directly search cryptocompare.
 	"""
 	if len(message.command) < 3:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
 	await client.send_chat_action(message.chat.id, "choose_contact")
-	res = json.loads(convert(message.command[1], message.command[2], float(message.command[0])))
-	await edit_or_reply(message, f"` → ` {res['amount']} {res['to']}")
+	val = float(message.command[0])
+	from_ticker = message.command[1]
+	to_ticker = message.command[2]
+	converted_val = 0.0
+	res = {"converted" : False}
+	if not bool(message.command["-crypto"]):
+		res = json.loads(convert(from_ticker, to_ticker, val))
+	if res["converted"]:
+		to_ticker = res["to"]
+		converted_val = res["amount"]
+	else:
+		res = cryptocompare.get_price(from_ticker, currency=to_ticker)
+		if not res:
+			return await edit_or_reply(message, "`[!] → ` Invalid currency ticker")
+		from_ticker = list(res.keys())[0]
+		to_ticker = list(res[from_ticker].keys())[0]
+		converted_val = res[from_ticker][to_ticker]
+	await edit_or_reply(message, f"` → ` {sep(converted_val)} {to_ticker}")
 
 @HELP.add(cmd="<word>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"], list(alemiBot.prefixes)))

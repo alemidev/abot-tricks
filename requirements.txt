@@ -5,6 +5,7 @@ udpy
 translators
 unit-converter
 google_currency
+cryptocompare
 geopy
 pyfiglet
 pillow
