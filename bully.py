@@ -108,6 +108,7 @@ async def fake_typing(client, tgt, cycle_n, sleep_t, action, message):
 		await edit_or_reply(message, "` → ` Done")
 	except: # maybe deleted?
 		pass
+	await client.send_chat_action(tgt, "cancel")
 
 @HELP.add(cmd="<time>")
 @alemiBot.on_message(is_superuser & filterCommand("typing", list(alemiBot.prefixes), options={
