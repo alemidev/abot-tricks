@@ -50,7 +50,7 @@ async def meme_cmd(client, message):
 	if message.command["-stats"]:
 		memenumber = len(os.listdir("plugins/alemibot-tricks/data/meme"))
 		proc_meme = await asyncio.create_subprocess_exec( # ewww this is not cross platform but will do for now
-			"du", "-b", "plugins/alemibot-tricks/data/meme",
+			"du", "-b", "plugins/alemibot-tricks/data/meme/",
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.STDOUT)
 		stdout, _stderr = await proc_meme.communicate()
