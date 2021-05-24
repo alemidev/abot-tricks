@@ -84,7 +84,7 @@ async def meme_cmd(client, message):
 		else:
 			fname = secrets.choice(os.listdir("plugins/alemibot-tricks/data/meme"))
 			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + fname, reply_to_message_id=reply_to,
-					caption="` → ` [--random--] **{fname}**")
+					caption=f"` → ` [--random--] **{fname}**")
 
 @HELP.add(cmd="<name>")
 @alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes), flags=["-pasta"]))
