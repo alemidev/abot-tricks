@@ -48,16 +48,16 @@ async def meme_cmd(client, message):
 	if is_me(message) and message.reply_to_message is not None:
 		reply_to = message.reply_to_message.message_id
 	if message.command["-stats"]:
-		memenumber = len(os.listdir("data/memes"))
+		memenumber = len(os.listdir("plugins/alemibot-tricks/data/meme"))
 		proc_meme = await asyncio.create_subprocess_exec( # ewww this is not cross platform but will do for now
-			"du", "-b", "data/memes",
+			"du", "-b", "plugins/alemibot-tricks/data/meme",
 			stdout=asyncio.subprocess.PIPE,
 			stderr=asyncio.subprocess.STDOUT)
 		stdout, _stderr = await proc_meme.communicate()
 		memesize = float(stdout.decode('utf-8').split("\t")[0])
 		await edit_or_reply(message, f"` → ` **{memenumber}** memes collected\n`  → ` folder size **{order_suffix(memesize)}**")
 	elif message.command["-list"]:
-		memes = os.listdir("data/memes")
+		memes = os.listdir("plugins/alemibot-tricks/data/meme")
 		memes.sort()
 		out = f"` → ` **Meme list** ({len(memes)} total) :\n[ "
 		out += ", ".join(memes)
@@ -65,9 +65,9 @@ async def meme_cmd(client, message):
 		await edit_or_reply(message, out)
 	elif len(message.command) > 0 and (len(message.command) > 1 or message.command[0] != "-delme"):
 		search = re.compile(message.command[0])
-		for meme in os.listdir("data/memes"):
+		for meme in os.listdir("plugins/alemibot-tricks/data/meme"):
 			if search.match(meme):
-				return await send_media(client, message.chat.id, 'data/memes/' + meme, reply_to_message_id=reply_to,
+				return await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + meme, reply_to_message_id=reply_to,
 						caption=f"` → ` **{meme}**")
 		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
@@ -76,18 +76,18 @@ async def meme_cmd(client, message):
 			memes = []
 			await prog.tick()
 			while len(memes) < batchsize:
-				fname = secrets.choice(os.listdir("data/memes"))
+				fname = secrets.choice(os.listdir("plugins/alemibot-tricks/data/meme"))
 				if fname.endswith((".jpg", ".jpeg", ".png")):
-					memes.append(InputMediaPhoto("data/memes/" + fname))
+					memes.append(InputMediaPhoto("plugins/alemibot-tricks/data/meme/" + fname))
 			await client.send_media_group(message.chat.id, memes) # TODO progress!
 			await prog.tick()
 		else:
-			fname = secrets.choice(os.listdir("data/memes"))
-			await send_media(client, message.chat.id, 'data/memes/' + fname, reply_to_message_id=reply_to,
+			fname = secrets.choice(os.listdir("plugins/alemibot-tricks/data/meme"))
+			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + fname, reply_to_message_id=reply_to,
 					caption="` → ` [--random--] **{fname}**")
 
 @HELP.add(cmd="<name>")
-@alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes)))
+@alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes), flags=["-pasta"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
@@ -97,27 +97,34 @@ async def steal_cmd(client, message):
 	Save a meme to collection.
 	Either attach an image or reply to one.
 	A name for the meme must be given (and must not contain spaces)
+	Add flag `-pasta` to save given file (or message text) to copypasta directory
 	"""
-	if len(message.command) < 1:
-		return await edit_or_reply(message, "`[!] → ` No meme name provided")
+	is_pasta = message.command["-pasta"]
+	dir_path = "pasta" if is_pasta else "meme"
 	msg = message
 	prog = ProgressChatAction(client, message.chat.id, action="playing")
-	if message.reply_to_message is not None:
+	if len(message.command) < 1:
+		return await edit_or_reply(message, f"`[!] → ` No {dir_path} name provided")
+	if message.reply_to_message:
 		msg = message.reply_to_message
 	if msg.media:
-		fpath = await client.download_media(msg, file_name="data/memes/", progress=prog.tick) # + message.command[0])
+		fpath = await client.download_media(msg, progress=prog.tick) # + message.command[0])
 		# await edit_or_reply(message, '` → ` saved meme as {}'.format(fpath))
 		path, fname = os.path.splitext(fpath) # this part below is trash, im waiting for my PR on pyrogram
 		extension = fname.split(".")
 		if len(extension) > 1:
 			extension = extension[1]
 		else:
-			extension = ".jpg" # cmon most memes will be jpg
+			extension = ".txt" if is_pasta else ".jpg" # cmon most memes will be jpg
 		newname = message.command[0] + '.' + extension
-		os.rename(fpath, "data/memes/" + newname)
-		await edit_or_reply(message, f'` → ` saved meme as {newname}')
+		os.rename(fpath, f"plugins/alemibot-tricks/data/{dir_path}/{newname}")
+		await edit_or_reply(message, f'` → ` saved {dir_path} as {newname}')
+	elif message.command["-pasta"]:
+		with open(f"plugins/alemibot-tricks/data/pasta/{message.command[0]}.txt", "w") as f:
+			f.write(msg.text)
+		await edit_or_reply(message, f'` → ` saved pasta as {message.command[0]}.txt')
 	else:
-		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
+		await edit_or_reply(message, "`[!] → ` No input")
 
 #
 # This is from https://github.com/Ovyerus/deeppyer
@@ -173,7 +180,7 @@ async def deepfry_cmd(client, message):
 	if target.media:
 		msg = await edit_or_reply(message, "` → ` Downloading...")
 		count = int(message.command["count"] or 1)
-		fpath = await client.download_media(target, file_name="tofry", progress=prog.tick)
+		fpath = await client.download_media(target, progress=prog.tick)
 		msg.edit(get_text(message) + "\n` → ` Downloading [OK]\n` → ` Frying...")
 		image = Image.open(fpath)
 
@@ -193,6 +200,7 @@ async def deepfry_cmd(client, message):
 		if message.from_user is not None and message.from_user.is_self:
 			await msg.edit(get_text(message) +
 				"\n` → ` Downloading [OK]\n` → ` Frying [OK]\n` → ` Uploading [OK]")
+		os.remove(fpath)
 	else:
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
 
@@ -268,13 +276,12 @@ INTERRUPT_PASTA = False
 async def pasta_cmd(client, message):
 	"""drop a copypasta
 
-	Give path to a .txt (or any file really) containing long text and bot will drop it in chat.
+	Give copypasta name or path to any file containing long text and bot will drop it in chat.
 	Use flag `-stop` to stop ongoing pasta.
 	By default,	pasta will be split at newlines (`\n`) and sent at a certain interval (2s), but you can customize both.
 	Long messages will still be split in chunks of 4096 characters due to telegram limit.
 	Add flag `-mono` to print pasta monospaced.
 	Add flag `-edit` to always edit the first message instead of sending new ones.
-	Getting a good pasta collection is up to you, make sure to `.r mkdir data/pastas` and `wget` some cool pastas in there!
 	"""
 	global INTERRUPT_PASTA
 	if message.command["-stop"]:
@@ -287,7 +294,16 @@ async def pasta_cmd(client, message):
 	monospace = bool(message.command["-mono"])
 	prog = ProgressChatAction(client, message.chat.id, action="typing")
 	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if bool(message.command["-edit"]) else None
-	with open(message.command[0], "rb") as f:
+	path = message.command[0]
+	try:
+		pattern = re.compile(message.command[0])
+		for pasta in os.listdir("plugins/alemibot-tricks/data/pasta"):
+			if pattern.match(pasta):
+				path = f"plugins/alemibot-tricks/data/pasta/{pasta}"
+				break
+	except re.error:
+		pass
+	with open(path, "rb") as f:
 		for section in re.split(sep, f.read().decode('utf-8','ignore')):
 			for chunk in batchify(section, 4090):
 				if chunk.strip() == "":
