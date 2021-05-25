@@ -222,9 +222,9 @@ async def zalgo_cmd(client, message):
 	max_accents = int(message.command["max"] or 10)
 	z = zalgo.zalgo()
 	z.maxAccentsPerLetter = max_accents
-	z.numAccentsUp = ( 1+ (damage*noise), 3 * noise )
-	z.numAccentsDown = ( 1+ (damage*noise), 3 * noise )
-	z.numAccentsMiddle = ( 1+ (damage*noise), 2 * noise )
+	z.numAccentsUp = ( 1+ int(damage*noise), 3 * noise )
+	z.numAccentsDown = ( 1+ int(damage*noise), 3 * noise )
+	z.numAccentsMiddle = ( 1+ int(damage*noise), 2 * noise )
 	out = z.zalgofy(text)
 
 	first = True # kinda ugly but this is kinda different from edit_or_reply
