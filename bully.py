@@ -242,13 +242,13 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 		target = await client.get_chat(int(tgt) if tgt.isnumeric() else tgt)
 	extra = {}
 	if scheduled:
-		extra["schedule_date"] = int(time.time()) + int(message.command["schedule"])
+		extra["schedule_date"] = int(time.time()) + parse_timedelta(message.command["schedule"]).total_seconds()
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
 	for i in range(number):
 		msg = await client.send_message(target.id, text, **extra)
 		if scheduled:
-			extra["schedule_date"] = int(extra["schedule_date"] + wait)
+			extra["schedule_date"] += wait
 		else:
 			await asyncio.sleep(wait)
 			if delme:
