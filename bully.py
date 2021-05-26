@@ -205,6 +205,7 @@ INTERRUPT_SPAM = False
 @alemiBot.on_message(is_superuser & filterCommand(["spam", "flood"], list(alemiBot.prefixes), options={
 	"number" : ["-n"],
 	"time" : ["-t"],
+	"schedule" : ["-s", "--schedule"],
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
@@ -214,7 +215,9 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	Will send many (`-n`) messages in this chat at a specific (`-t`) interval.
 	If no number is given, will default to 3. If no interval is specified, messages will be sent as soon as possible.
 	You can reply to a message and all spammed msgs will reply to that one too.
-	If flag `-delme` is added, messages will be immediately deleted.
+	You can schedule messages instead of sending them immediately. Command works the same. Add a schedule offset \
+	with `-s` (can also be 0 to schedule immediately).
+	If flag `-delme` is added, messages will be immediately deleted (except when scheduled).
 	To stop an ongoing spam, you can do `.spam -stop`.
 	"""
 	global INTERRUPT_SPAM
@@ -225,18 +228,24 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	number = int(message.command["number"] or 3)
 	text = message.command.text or "."
 	delme = text.endswith("-delme")
+	scheduled = bool(message.command["schedule"])
 	if delme:
 		text = text.replace("-delme", "")
 	if len(message.command) > 0 and message.command[0].isnumeric(): # allow older usage
 		number = int(message.command[0])
 		text = text.replace(message.command[0] + " ", "", 1)
 	extra = {}
+	if scheduled:
+		extra["schedule_date"] = time.time() + int(message.command["schedule"])
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
 	for i in range(number):
 		msg = await client.send_message(message.chat.id, text, **extra)
-		await asyncio.sleep(wait)
-		if delme:
+		if scheduled:
+			extra["schedule_date"] += wait
+		else:
+			await asyncio.sleep(wait)
+		if not scheduled and delme:
 			await msg.delete()
 		if INTERRUPT_SPAM:
 			INTERRUPT_SPAM = False
