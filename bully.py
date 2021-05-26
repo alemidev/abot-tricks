@@ -206,6 +206,7 @@ INTERRUPT_SPAM = False
 	"number" : ["-n"],
 	"time" : ["-t"],
 	"schedule" : ["-s", "--schedule"],
+	"target" : ["--target"],
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
@@ -219,6 +220,7 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	with `-s` (can also be 0 to schedule immediately).
 	If flag `-delme` is added, messages will be immediately deleted (except when scheduled).
 	To stop an ongoing spam, you can do `.spam -stop`.
+	Specify another chat to spam into with `--target`.
 	"""
 	global INTERRUPT_SPAM
 	if message.command["-stop"]:
@@ -229,25 +231,29 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	text = message.command.text or "."
 	delme = text.endswith("-delme")
 	scheduled = bool(message.command["schedule"])
+	target = message.chat
 	if delme:
 		text = text.replace("-delme", "")
 	if len(message.command) > 0 and message.command[0].isnumeric(): # allow older usage
 		number = int(message.command[0])
 		text = text.replace(message.command[0] + " ", "", 1)
+	if "target" in message.command:
+		tgt = message.command["target"]
+		target = await client.get_chat(int(tgt) if tgt.isnumeric() else tgt)
 	extra = {}
 	if scheduled:
 		extra["schedule_date"] = int(time.time()) + int(message.command["schedule"])
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
 	for i in range(number):
-		msg = await client.send_message(message.chat.id, text, **extra)
+		msg = await client.send_message(target.id, text, **extra)
 		if scheduled:
 			extra["schedule_date"] = int(extra["schedule_date"] + wait)
 		else:
 			await asyncio.sleep(wait)
-		if not scheduled and delme:
-			await msg.delete()
+			if delme:
+				await msg.delete()
 		if INTERRUPT_SPAM:
 			INTERRUPT_SPAM = False
-			await edit_or_reply(message, f"` → ` Canceled after {i + 1} events")
-			break
+			return await edit_or_reply(message, f"` → ` Canceled after {i + 1} events")
+	await edit_or_reply(message, "` → ` Done")
