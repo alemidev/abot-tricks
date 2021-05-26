@@ -236,7 +236,7 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 		text = text.replace(message.command[0] + " ", "", 1)
 	extra = {}
 	if scheduled:
-		extra["schedule_date"] = time.time() + int(message.command["schedule"])
+		extra["schedule_date"] = int(time.time()) + int(message.command["schedule"])
 	if message.reply_to_message is not None:
 		extra["reply_to_message_id"] = message.reply_to_message.message_id
 	for i in range(number):
