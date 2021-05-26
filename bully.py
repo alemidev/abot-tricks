@@ -203,30 +203,30 @@ INTERRUPT_SPAM = False
 
 @HELP.add(cmd="<text>")
 @alemiBot.on_message(is_superuser & filterCommand(["spam", "flood"], list(alemiBot.prefixes), options={
-	"number" : ["-n"],
-	"time" : ["-t"],
+	"number" : ["-n", "--number"],
+	"interval" : ["-i", "--interval"],
 	"schedule" : ["-s", "--schedule"],
-	"target" : ["--target"],
+	"target" : ["-t", "--target"],
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
 async def spam(client, message): # TODO start another task so that it doesn't stop from rebooting
 	"""pretty self explainatory
 
-	Will send many (`-n`) messages in this chat at a specific (`-t`) interval.
+	Will send many (`-n`) messages in this chat at a specific (`-i`) interval.
 	If no number is given, will default to 3. If no interval is specified, messages will be sent as soon as possible.
 	You can reply to a message and all spammed msgs will reply to that one too.
 	You can schedule messages instead of sending them immediately. Command works the same. Add a schedule offset \
 	with `-s` (can also be 0 to schedule immediately).
 	If flag `-delme` is added, messages will be immediately deleted (except when scheduled).
 	To stop an ongoing spam, you can do `.spam -stop`.
-	Specify another chat to spam into with `--target`.
+	Specify another chat to spam into with `-t`.
 	"""
 	global INTERRUPT_SPAM
 	if message.command["-stop"]:
 		INTERRUPT_SPAM = True
 		return await edit_or_reply(message, "` → ` Stopping")
-	wait = float(message.command["time"] or 0)
+	wait = parse_timedelta(message.command["interval"] or "0s").total_seconds()
 	number = int(message.command["number"] or 3)
 	text = message.command.text or "."
 	delme = text.endswith("-delme")
