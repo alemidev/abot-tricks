@@ -2,7 +2,7 @@ wikipedia-api
 italian-dictionary
 PyDictionary
 udpy
-translators
+deep-translator
 unit-converter
 google_currency
 cryptocompare

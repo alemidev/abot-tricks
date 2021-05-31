@@ -9,9 +9,9 @@ import italian_dictionary
 import cryptocompare
 from PyDictionary import PyDictionary
 from udpy import UrbanClient
-import translators as ts
 from google_currency import convert
 from unit_converter.converter import converts
+from deep_translator import GoogleTranslator
 
 import requests
 
@@ -195,40 +195,30 @@ async def wiki_cmd(client, message):
 @alemiBot.on_message(is_allowed & filterCommand(["translate", "tran", "tr"], list(alemiBot.prefixes), options={
 	"src" : ["-s", "-src"],
 	"dest" : ["-d", "-dest"],
-	"engine" : ["-e", "-engine"]
+# 	"engine" : ["-e", "-engine"]
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def translate_cmd(client, message):
+async def translate_cmd(client, message): # TODO implement more engines from deep-translator
 	"""translate to/from
 
 	Translate text from a language (autodetected if not specified with `-s`) to another \
 	specified lang (defaults to eng if not specified with `-d`).
-	Used engine can be specified with `-e` (available `google`, `deepl`, `bing`). \
-	Only `bing` works as of now and is the default.
-	The lang codes must be 2 letter long (en, ja...)
+	Will work with Google Translate.
+	Source language will be automatically detected if not specified otherwise.
+	Language codes can be 2 letters (`en`) or full word (`english`).
 	"""
 	if len(message.command) < 1 and not message.reply_to_message:
 		return await edit_or_reply(message, "`[!] → ` Nothing to translate")
 	tr_options = {}
 	# lmao I can probably pass **args directly
-	if "src" in message.command:
-		tr_options["from_language"] = message.command["src"]
-	if "dest" in message.command:
-		tr_options["to_language"] = message.command["dest"]
-	engine = message.command["engine"] or "bing"
+	source_lang = message.command["src"] or "auto"
+	dest_lang = message.command["dest"] or "en"
 	await client.send_chat_action(message.chat.id, "find_location")
 	q = message.reply_to_message.text if message.reply_to_message is not None else message.command.text
-	out = "`[!] → ` Unknown engine"
-	if engine == "google":
-		out = "`[!] → ` As of now, this hangs forever, don't use yet!"
-		# res = ts.google(q, **tr_options)
-	elif engine == "deepl":
-		out = ts.deepl(q, **tr_options)
-	elif engine == "bing":
-		out = "` → ` " + ts.bing(q, **tr_options)
-	await edit_or_reply(message, out)
+	out = GoogleTranslator(source=source_lang, target=dest_lang).translate(text=q)
+	await edit_or_reply(message, "` → ` " + out)
 
 @HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("lmgtfy", list(alemiBot.prefixes)))
