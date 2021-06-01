@@ -155,7 +155,8 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	media = make_media_group(files)
 	out += " [`OK`]\n` → ` Uploading album"
 	await edit_or_reply(message, out)
-	await client.send_media_group(message.chat.id, media, progress=prog.tick)
+	await prog.tick()
+	await client.send_media_group(message.chat.id, media)
 	out += " [`OK`]\n` → ` Cleaning up"
 	await edit_or_reply(message, out)
 	for f in files:
