@@ -1,3 +1,4 @@
+tgcrypto # enough file uploads/downloads to justify requiring this
 wikipedia-api
 italian-dictionary
 PyDictionary
