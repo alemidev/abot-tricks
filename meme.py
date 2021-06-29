@@ -72,15 +72,14 @@ async def meme_cmd(client, message):
 		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
 		if "batch" in message.command:
-			prog = ProgressChatAction(client, message.chat.id, action="upload_photo")
-			memes = []
-			await prog.tick()
-			while len(memes) < batchsize:
-				fname = secrets.choice(os.listdir("plugins/alemibot-tricks/data/meme"))
-				if fname.endswith((".jpg", ".jpeg", ".png")):
-					memes.append(InputMediaPhoto("plugins/alemibot-tricks/data/meme/" + fname))
-			await client.send_media_group(message.chat.id, memes) # TODO progress!
-			await prog.tick()
+			with ProgressChatAction(client, message.chat.id, action="upload_photo") as prog:
+				pool = [ x for x in filter(lambda x: x.endswith((".jpg", ".jpeg", ".png")), os.listdir("plugins/alemibot-tricks/data/meme")) ]
+				def pick(pool):
+					pick = secrets.choice(pool)
+					pool.remove(pick)
+					return pick
+				memes = [InputMediaPhoto("plugins/alemibot-tricks/data/meme/" + pick(pool)) for _ in range(batchsize)]
+				await client.send_media_group(message.chat.id, memes)
 		else:
 			fname = secrets.choice(os.listdir("plugins/alemibot-tricks/data/meme"))
 			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + fname, reply_to_message_id=reply_to,
@@ -102,7 +101,7 @@ async def steal_cmd(client, message):
 	is_pasta = message.command["-pasta"]
 	dir_path = "pasta" if is_pasta else "meme"
 	msg = message
-	prog = ProgressChatAction(client, message.chat.id, action="playing")
+	prog = ProgressChatAction(client, message.chat.id, action="record_video")
 	if len(message.command) < 1:
 		return await edit_or_reply(message, f"`[!] → ` No {dir_path} name provided")
 	if message.reply_to_message:
