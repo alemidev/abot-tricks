@@ -64,7 +64,7 @@ async def attack_username(client, message, chat, username, interval, limit):
 	await client.delete_channel(chat.id)
 
 @HELP.add(cmd="<username>")
-@alemiBot.on_message(is_superuser & filterCommand("username", list(alemiBot.prefixes), options={
+@alemiBot.on_message(is_superuser & filterCommand(["steal_username", "steal_user"], list(alemiBot.prefixes), options={
 	"interval" : ["-i", "-int"],
 	"limit" : ["-lim", "-limit"]
 }, flags=["-stop"]))
