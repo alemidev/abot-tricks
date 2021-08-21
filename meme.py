@@ -1,6 +1,7 @@
 import asyncio
 import secrets
 import random
+import html
 import os
 import io
 import re
@@ -277,8 +278,9 @@ async def pasta_cmd(client, message):
 
 	Give copypasta name or path to any file containing long text and bot will drop it in chat.
 	Use flag `-stop` to stop ongoing pasta.
-	By default,	pasta will be split at newlines (`\n`) and sent at a certain interval (2s), but you can customize both.
+	A separator can be specified with `-s` to split the copypasta (for example, at newlines `\\n`).
 	Long messages will still be split in chunks of 4096 characters due to telegram limit.
+	Messages will be sent at an interval of 1 second by default. A different interval can be specified with `-i`.
 	Add flag `-mono` to print pasta monospaced.
 	Add flag `-edit` to always edit the first message instead of sending new ones.
 	"""
@@ -288,11 +290,13 @@ async def pasta_cmd(client, message):
 		return
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
-	sep = message.command["separator"] or "\n"
-	intrv = float(message.command["interval"] or 2)
+	sep = message.command["separator"]
+	intrv = float(message.command["interval"] or 1.0)
 	monospace = bool(message.command["-mono"])
-	prog = ProgressChatAction(client, message.chat.id, action="typing")
-	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if bool(message.command["-edit"]) else None
+	edit_this = await client.send_message(message.chat.id, "` → ` Starting") \
+			if bool(message.command["-edit"]) else None
+	p_mode = 'html' if monospace else None
+	# Find correct path
 	path = message.command[0]
 	try:
 		pattern = re.compile(message.command[0])
@@ -302,17 +306,19 @@ async def pasta_cmd(client, message):
 				break
 	except re.error:
 		pass
+	# load text, make it a list so it's iterable
 	with open(path, "rb") as f:
-		for section in re.split(sep, f.read().decode('utf-8','ignore')):
-			for chunk in batchify(section, 4090):
-				if chunk.strip() == "":
+		text = [ f.read().decode('utf-8', 'ignore') ]
+	# apply separator if requested
+	if sep:
+		text = re.split(sep, text[0])
+	with ProgressChatAction(client, message.chat.id, action="typing") as prog:
+		for section in text:
+			for chunk in batchify(section, 4096):
+				if len(chunk.strip()) < 1:
 					continue
-				p_mode = None
 				if monospace:
-					chunk = "```" + chunk + "```"
-					p_mode = "markdown"
-
-				await prog.tick()
+					chunk = "<code>" + html.escape(chunk) + "</code>"
 				if edit_this:
 					await edit_this.edit(chunk, parse_mode=p_mode)
 				else:
@@ -321,5 +327,5 @@ async def pasta_cmd(client, message):
 				if INTERRUPT_PASTA:
 					INTERRUPT_PASTA = False
 					raise Exception("Interrupted by user")
-	if edit_this:
-		await edit_this.edit("` → ` Done")
+		if edit_this:
+			await edit_this.edit("` → ` Done")
