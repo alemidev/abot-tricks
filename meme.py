@@ -102,6 +102,10 @@ async def steal_cmd(client, message):
 	is_pasta = message.command["-pasta"]
 	dir_path = "pasta" if is_pasta else "meme"
 	msg = message
+	newname = message.command[0]
+	# check if a file with this name already exists
+	if newname in [ fname.rsplit(".", 1)[0] for fname in os.listdir(f"plugins/alemibot-tricks/data/{dir_path}/") ]:
+		return await edit_or_reply(message, f"`[!] → ` {dir_path} with same name already exists")
 	prog = ProgressChatAction(client, message.chat.id, action="record_video")
 	if len(message.command) < 1:
 		return await edit_or_reply(message, f"`[!] → ` No {dir_path} name provided")
@@ -115,8 +119,8 @@ async def steal_cmd(client, message):
 		if len(extension) > 1:
 			extension = extension[1]
 		else:
-			extension = ".txt" if is_pasta else ".jpg" # cmon most memes will be jpg
-		newname = message.command[0] + '.' + extension
+			extension = "txt" if is_pasta else "jpg" # cmon most memes will be jpg
+		newname = newname '.' + extnsion
 		os.rename(fpath, f"plugins/alemibot-tricks/data/{dir_path}/{newname}")
 		await edit_or_reply(message, f'` → ` saved {dir_path} as {newname}')
 	elif message.command["-pasta"]:
