@@ -326,7 +326,7 @@ async def pasta_cmd(client, message):
 				if edit_this:
 					await edit_this.edit(chunk, parse_mode=p_mode)
 				else:
-					await client.send_message(message.chat.id, chunk, parse_mode=p_mode, reply_to_message=repl_id)
+					await client.send_message(message.chat.id, chunk, parse_mode=p_mode, reply_to_message_id=repl_id)
 				await asyncio.sleep(intrv)
 				if INTERRUPT_PASTA:
 					INTERRUPT_PASTA = False
