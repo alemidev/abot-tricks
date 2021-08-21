@@ -283,6 +283,7 @@ async def pasta_cmd(client, message):
 	Messages will be sent at an interval of 1 second by default. A different interval can be specified with `-i`.
 	Add flag `-mono` to print pasta monospaced.
 	Add flag `-edit` to always edit the first message instead of sending new ones.
+	Reply to a message while invoking this command to have all pasta chunks reply to that message.
 	"""
 	global INTERRUPT_PASTA
 	if message.command["-stop"]:
@@ -290,10 +291,13 @@ async def pasta_cmd(client, message):
 		return
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
+	repl_id = None
+	if message.reply_to_message:
+		repl_id = message.reply_to_message.message_id
 	sep = message.command["separator"]
 	intrv = float(message.command["interval"] or 1.0)
 	monospace = bool(message.command["-mono"])
-	edit_this = await client.send_message(message.chat.id, "` → ` Starting") \
+	edit_this = await client.send_message(message.chat.id, "` → ` Starting", reply_to_message_id=repl_id) \
 			if bool(message.command["-edit"]) else None
 	p_mode = 'html' if monospace else None
 	# Find correct path
@@ -322,7 +326,7 @@ async def pasta_cmd(client, message):
 				if edit_this:
 					await edit_this.edit(chunk, parse_mode=p_mode)
 				else:
-					await client.send_message(message.chat.id, chunk, parse_mode=p_mode)
+					await client.send_message(message.chat.id, chunk, parse_mode=p_mode, reply_to_message=repl_id)
 				await asyncio.sleep(intrv)
 				if INTERRUPT_PASTA:
 					INTERRUPT_PASTA = False
