@@ -120,7 +120,7 @@ async def steal_cmd(client, message):
 			extension = extension[1]
 		else:
 			extension = "txt" if is_pasta else "jpg" # cmon most memes will be jpg
-		newname = newname '.' + extnsion
+		newname = newname + '.' + extnsion
 		os.rename(fpath, f"plugins/alemibot-tricks/data/{dir_path}/{newname}")
 		await edit_or_reply(message, f'` → ` saved {dir_path} as {newname}')
 	elif message.command["-pasta"]:
