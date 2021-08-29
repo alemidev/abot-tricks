@@ -24,12 +24,9 @@ logger = logging.getLogger(__name__)
 HELP = HelpCategory("BULLY")
 
 
-INTERRUPT_STEALER = False
-
 async def attack_username(client, message, chat, username, interval, limit):
-	global INTERRUPT_STEALER
 	attempts = 0
-	while not INTERRUPT_STEALER and time.time() < limit: # TODO maybe redo this and make it not exception based, damn
+	while not client.ctx.INTERRUPT_STEALER and time.time() < limit: # TODO maybe redo this and make it not exception based, damn
 		try:
 			attempts += 1
 			await client.send(ResolveUsername(username=username)) # this should bypass cache and will get me floodwaited very reliably (:
@@ -59,7 +56,7 @@ async def attack_username(client, message, chat, username, interval, limit):
 			await client.delete_channel(chat.id)
 			INTERRUPT_STEALER = False
 			return
-	INTERRUPT_STEALER = False
+	client.ctx.INTERRUPT_STEALER = False
 	await message.edit(f"`[!] → ` Failed claiming --@{username}-- (made **{attempts}** attempts)")
 	await client.delete_channel(chat.id)
 
@@ -79,9 +76,8 @@ async def steal_username_cmd(client, message):
 	Manually stop attempts with `-stop`.
 	This is very aggressive and will cause FloodWaits super easily if abused, be wary!
 	"""
-	global INTERRUPT_STEALER
 	if message.command["-stop"]:
-		INTERRUPT_STEALER = True
+		client.ctx.INTERRUPT_STEALER = True
 		return await edit_or_reply(message, "` → ` Stopping")
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
@@ -94,13 +90,10 @@ async def steal_username_cmd(client, message):
 	await edit_or_reply(message, "` → ` Created channel")
 	asyncio.get_event_loop().create_task(attack_username(client, message, chan, uname, interval, time_limit))
 
-TYPING_INTERRUPT = False
-
 async def fake_typing(client, tgt, cycle_n, sleep_t, action, message):
-	global TYPING_INTERRUPT
 	for _ in range(cycle_n):
-		if TYPING_INTERRUPT:
-			TYPING_INTERRUPT = False
+		if client.ctx.TYPING_INTERRUPT:
+			client.ctx.TYPING_INTERRUPT = False
 			break
 		await asyncio.sleep(sleep_t)
 		await client.send_chat_action(tgt, action)
@@ -131,9 +124,8 @@ async def typing_cmd(client, message):
 	`upload_video_note`, `choose_contact`, `playing`, `speaking`, `cancel`.
 	You can terminate ongoing typing with `-stop`, but if more than one is running, a random one will be stopped."
 	"""
-	global TYPING_INTERRUPT
 	if message.command["-stop"]:
-		TYPING_INTERRUPT = True
+		client.ctx.TYPING_INTERRUPT = True
 		return await edit_or_reply(message, "` → ` Stopping")
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
@@ -150,7 +142,7 @@ async def typing_cmd(client, message):
 	await client.send_chat_action(tgt, action)
 	asyncio.get_event_loop().create_task(fake_typing(client, tgt, cycles, interval, action, message))
 	await edit_or_reply(message, f"` → ` {action} ...")
-	
+
 @HELP.add()
 @alemiBot.on_message(is_superuser & filterCommand("everyone", list(alemiBot.prefixes)))
 @report_error(logger)
@@ -199,8 +191,6 @@ async def screenshot_cmd(client, message):
 	)
 	await edit_or_reply(message, "` → ` Screenshotted")
 
-INTERRUPT_SPAM = False
-
 @HELP.add(cmd="<text>")
 @alemiBot.on_message(is_superuser & filterCommand(["spam", "flood"], list(alemiBot.prefixes), options={
 	"number" : ["-n", "--number"],
@@ -222,9 +212,8 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	To stop an ongoing spam, you can do `.spam -stop`.
 	Specify another chat to spam into with `-t`.
 	"""
-	global INTERRUPT_SPAM
 	if message.command["-stop"]:
-		INTERRUPT_SPAM = True
+		client.ctx.INTERRUPT_SPAM = True
 		return await edit_or_reply(message, "` → ` Stopping")
 	wait = parse_timedelta(message.command["interval"] or "0s").total_seconds()
 	number = int(message.command["number"] or 3)
@@ -253,7 +242,7 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 			await asyncio.sleep(wait)
 			if delme:
 				await msg.delete()
-		if INTERRUPT_SPAM:
-			INTERRUPT_SPAM = False
+		if client.ctx.INTERRUPT_SPAM:
+			client.ctx.INTERRUPT_SPAM = False
 			return await edit_or_reply(message, f"` → ` Canceled after {i + 1} events")
 	await edit_or_reply(message, "` → ` Done")
