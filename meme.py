@@ -1,6 +1,7 @@
 import asyncio
 import secrets
 import random
+import html
 import os
 import io
 import re
@@ -103,6 +104,10 @@ async def steal_cmd(client, message):
 	is_pasta = message.command["-pasta"]
 	dir_path = "pasta" if is_pasta else "meme"
 	msg = message
+	newname = message.command[0]
+	# check if a file with this name already exists
+	if newname in [ fname.rsplit(".", 1)[0] for fname in os.listdir(f"plugins/alemibot-tricks/data/{dir_path}/") ]:
+		return await edit_or_reply(message, f"`[!] → ` {dir_path} with same name already exists")
 	prog = ProgressChatAction(client, message.chat.id, action="record_video")
 	if len(message.command) < 1:
 		return await edit_or_reply(message, f"`[!] → ` No {dir_path} name provided")
@@ -116,8 +121,8 @@ async def steal_cmd(client, message):
 		if len(extension) > 1:
 			extension = extension[1]
 		else:
-			extension = ".txt" if is_pasta else ".jpg" # cmon most memes will be jpg
-		newname = message.command[0] + '.' + extension
+			extension = "txt" if is_pasta else "jpg" # cmon most memes will be jpg
+		newname = newname + '.' + extension
 		os.rename(fpath, f"plugins/alemibot-tricks/data/{dir_path}/{newname}")
 		await edit_or_reply(message, f'` → ` saved {dir_path} as {newname}')
 	elif message.command["-pasta"]:
@@ -277,21 +282,28 @@ async def pasta_cmd(client, message):
 
 	Give copypasta name or path to any file containing long text and bot will drop it in chat.
 	Use flag `-stop` to stop ongoing pasta.
-	By default,	pasta will be split at newlines (`\n`) and sent at a certain interval (2s), but you can customize both.
+	A separator can be specified with `-s` to split the copypasta (for example, at newlines `\\n`).
 	Long messages will still be split in chunks of 4096 characters due to telegram limit.
+	Messages will be sent at an interval of 1 second by default. A different interval can be specified with `-i`.
 	Add flag `-mono` to print pasta monospaced.
 	Add flag `-edit` to always edit the first message instead of sending new ones.
+	Reply to a message while invoking this command to have all pasta chunks reply to that message.
 	"""
 	if message.command["-stop"]:
 		client.ctx.INTERRUPT_PASTA = True
 		return
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
-	sep = message.command["separator"] or "\n"
-	intrv = float(message.command["interval"] or 2)
+	repl_id = None
+	if message.reply_to_message:
+		repl_id = message.reply_to_message.message_id
+	sep = message.command["separator"]
+	intrv = float(message.command["interval"] or 1.0)
 	monospace = bool(message.command["-mono"])
-	prog = ProgressChatAction(client, message.chat.id, action="typing")
-	edit_this = await client.send_message(message.chat.id, "` → ` Starting") if bool(message.command["-edit"]) else None
+	edit_this = await client.send_message(message.chat.id, "` → ` Starting", reply_to_message_id=repl_id) \
+			if bool(message.command["-edit"]) else None
+	p_mode = 'html' if monospace else None
+	# Find correct path
 	path = message.command[0]
 	try:
 		pattern = re.compile(message.command[0])
@@ -301,24 +313,26 @@ async def pasta_cmd(client, message):
 				break
 	except re.error:
 		pass
+	# load text, make it a list so it's iterable
 	with open(path, "rb") as f:
-		for section in re.split(sep, f.read().decode('utf-8','ignore')):
-			for chunk in batchify(section, 4090):
-				if chunk.strip() == "":
+		text = [ f.read().decode('utf-8', 'ignore') ]
+	# apply separator if requested
+	if sep:
+		text = re.split(sep, text[0])
+	with ProgressChatAction(client, message.chat.id, action="typing") as prog:
+		for section in text:
+			for chunk in batchify(section, 4096):
+				if len(chunk.strip()) < 1:
 					continue
-				p_mode = None
 				if monospace:
-					chunk = "```" + chunk + "```"
-					p_mode = "markdown"
-
-				await prog.tick()
+					chunk = "<code>" + html.escape(chunk) + "</code>"
 				if edit_this:
 					await edit_this.edit(chunk, parse_mode=p_mode)
 				else:
-					await client.send_message(message.chat.id, chunk, parse_mode=p_mode)
+					await client.send_message(message.chat.id, chunk, parse_mode=p_mode, reply_to_message_id=repl_id)
 				await asyncio.sleep(intrv)
 				if client.ctx.INTERRUPT_PASTA:
 					client.ctx.INTERRUPT_PASTA = False
 					raise Exception("Interrupted by user")
-	if edit_this:
-		await edit_this.edit("` → ` Done")
+		if edit_this:
+			await edit_this.edit("` → ` Done")
