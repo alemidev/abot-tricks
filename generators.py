@@ -8,7 +8,7 @@ import time
 import requests
 
 from collections import Counter
-from gtts import gTTS 
+from gtts import gTTS
 from pydub import AudioSegment
 import speech_recognition as sr
 
@@ -320,6 +320,51 @@ async def fortune_cmd(client, message):
 		stdout, _stderr = await proc.communicate()
 	output = cleartermcolor(stdout.decode())
 	await edit_or_reply(message, "``` → " + output + "```")
+
+ONCE = None
+async def check_firefox():
+	global ONCE
+	if ONCE is not None:
+		return ONCE
+	proc = await asyncio.create_subprocess_shell("which firefox", stdout=asyncio.subprocess.PIPE)
+	stdout, _stderr = await proc.communicate()
+	if len(stdout) > 1:
+		ONCE = stdout.decode('utf-8')
+	else:
+		ONCE = False
+	return ONCE
+
+@HELP.add(sudo=False, cmd="<url>")
+@alemiBot.on_message(is_allowed & filterCommand(["webshot"], list(alemiBot.prefixes), flags=["-raw"]))
+@report_error(logger)
+@set_offline
+async def webshot_cmd(client, message):
+	"""capture a website screenshot
+
+	Will run headlessly firefox in background to create a screenshot, and then upload it.
+	Add `-raw` to get the image as a document (uncompressed).
+	"""
+	if len(message.command) < 1:
+		return await edit_or_reply(message, "`[!] → ` No input")
+	executable = await check_firefox()
+	if not executable:
+		return await edit_or_reply(message, "`[!] → ` firefox not installed")
+	url = message.command[0]
+	if requests.head(url).status_code >= 400:
+		return await edit_or_reply(message, "`[!] → ` Invalid URL")
+	raw = bool(message.command["-raw"])
+	with ProgressChatAction(client, message.chat.id, "upload_document" if raw else "upload_photo") as prog:
+		proc = await asyncio.create_subprocess_exec(
+			executable.strip(), "--screenshot", f"{os.getcwd()}/data/webshot.png", url,
+			stderr=asyncio.subprocess.STDOUT,
+			stdout=asyncio.subprocess.PIPE
+		)
+		stdout, _stderr = await proc.communicate()
+		caption = f"`→ ` {url}"
+		if raw:
+			await client.send_document(message.chat.id, "data/webshot.png", progress=prog.tick, caption=caption)
+		else:
+			await client.send_photo(message.chat.id, "data/webshot.png", progress=prog.tick, caption=caption)
 
 @HELP.add(cmd="[<n>]", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["iter_freq"], list(alemiBot.prefixes), options={
