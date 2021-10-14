@@ -8,6 +8,8 @@ import re
 
 from PIL import Image, ImageEnhance, ImageOps
 
+from typing import List
+
 from pyrogram import filters
 from pyrogram.types import InputMediaPhoto, InputMediaVideo
 
@@ -120,7 +122,7 @@ async def steal_cmd(client, message):
 			extension = extension[1]
 		else:
 			extension = "txt" if is_pasta else "jpg" # cmon most memes will be jpg
-		newname = newname + '.' + extnsion
+		newname = newname + '.' + extension
 		os.rename(fpath, f"plugins/alemibot-tricks/data/{dir_path}/{newname}")
 		await edit_or_reply(message, f'` → ` saved {dir_path} as {newname}')
 	elif message.command["-pasta"]:
@@ -219,14 +221,14 @@ def ascii_image(img:Image, new_width:int=120) -> str:
 	new_height = aspect_ratio * new_width * 0.55
 	img = img.resize((new_width, int(new_height)))
 	img = img.convert('L')
-	
+
 	pixels = img.getdata()
-	
+
 	# replace each pixel with a character from array
 	chars = ["B","S","#","&","@","$","%","*","!",":","."]
 	new_pixels = [chars[pixel//25] for pixel in pixels]
 	new_pixels = ''.join(new_pixels)
-	
+
 	# split string of chars into multiple strings of length equal to new width and create a list
 	new_pixels_count = len(new_pixels)
 	ascii_image = [new_pixels[index:index + new_width] for index in range(0, new_pixels_count, new_width)]
@@ -267,8 +269,6 @@ async def ascii_cmd(client, message):
 	else:
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
 
-INTERRUPT_PASTA = False
-
 @HELP.add(cmd="<fpath>")
 @alemiBot.on_message(is_superuser & filterCommand("pasta", list(alemiBot.prefixes), options={
 	"separator" : ["-s", "-sep"],
@@ -289,9 +289,8 @@ async def pasta_cmd(client, message):
 	Add flag `-edit` to always edit the first message instead of sending new ones.
 	Reply to a message while invoking this command to have all pasta chunks reply to that message.
 	"""
-	global INTERRUPT_PASTA
 	if message.command["-stop"]:
-		INTERRUPT_PASTA = True
+		client.ctx.INTERRUPT_PASTA = True
 		return
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
@@ -332,8 +331,8 @@ async def pasta_cmd(client, message):
 				else:
 					await client.send_message(message.chat.id, chunk, parse_mode=p_mode, reply_to_message_id=repl_id)
 				await asyncio.sleep(intrv)
-				if INTERRUPT_PASTA:
-					INTERRUPT_PASTA = False
+				if client.ctx.INTERRUPT_PASTA:
+					client.ctx.INTERRUPT_PASTA = False
 					raise Exception("Interrupted by user")
 		if edit_this:
 			await edit_this.edit("` → ` Done")
