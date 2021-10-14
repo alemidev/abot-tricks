@@ -379,7 +379,7 @@ async def ocr_cmd(client, message):
 
 _CONV : Dict[int, dict] = {} # cheap way to keep a history of conversations
 
-@HELP.add(cmd="<text>")
+@HELP.add(cmd="[<payload>]")
 @alemiBot.on_message(is_allowed & filterCommand(["huggingface", "hgf"], alemiBot.prefixes, options={
 	"model" : ["-m", "--model"],
 	"conversation" : ["-conv", "--conversation"],
