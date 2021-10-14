@@ -1,6 +1,10 @@
 import os
 import json
+import time
 from urllib import parse
+import aiohttp
+
+from typing import Dict
 
 from bot import alemiBot
 
@@ -13,15 +17,17 @@ from google_currency import convert
 from unit_converter.converter import converts
 from deep_translator import GoogleTranslator
 
-import requests
-
 from pydub import AudioSegment
 import speech_recognition as sr
 
+from pyrogram import Client
+from pyrogram.types import Message
+
 from util import batchify
 from util.text import tokenize_json, sep
+from util.getters import get_user
 from util.permission import is_allowed
-from util.message import edit_or_reply
+from util.message import edit_or_reply, ProgressChatAction
 from util.command import filterCommand
 from util.decorators import report_error, set_offline, cancel_chat_action
 from util.help import HelpCategory
@@ -261,8 +267,13 @@ async def weather_cmd(client, message):
 	await client.send_chat_action(message.chat.id, "find_location")
 	q = message.command.text
 	lang = message.command["lang"] or "en"
-	r = requests.get(f"https://wttr.in/{q}?mnTC0&lang={lang}")
-	await edit_or_reply(message, "<code> → " + r.text + "</code>", parse_mode="html")
+
+	async with aiohttp.ClientSession() as sess: # TODO reuse session
+		async with sess.get(f"https://wttr.in/{q}?mnTC0&lang={lang}") as res:
+			text = await res.text()
+
+	await edit_or_reply(message, "<code> → " + text + "</code>", parse_mode="html")
+
 	# # Why bother with OpenWeatherMap?
 	# r = requests.get(f'http://api.openweathermap.org/data/2.5/weather?q={q}&APPID={APIKEY}').json()
 	# if r["cod"] != 200:
@@ -338,14 +349,16 @@ async def ocr_cmd(client, message):
 		await client.send_chat_action(message.chat.id, "upload_photo")
 		fpath = await client.download_media(msg, file_name="data/ocr")
 		with open(fpath, 'rb') as f:
-			r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
+			# r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
+			async with aiohttp.ClientSession() as sess:
+				async with sess.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload) as res:
+					data = await res.json()
 		if message.command["-json"]:
-			raw = tokenize_json(json.dumps(json.loads(r.content.decode()), indent=2))
+			raw = tokenize_json(json.dumps(data), indent=2)
 			await edit_or_reply(message, f"` → `\n{raw}")
 		else:
-			raw = json.loads(r.content.decode())
 			out = ""
-			for el in raw["ParsedResults"]:
+			for el in data["ParsedResults"]:
 				out += el["ParsedText"]
 			await edit_or_reply(message, f"` → ` {out}")
 	else:
@@ -363,3 +376,102 @@ async def ocr_cmd(client, message):
 # 	url = message.command["arg"]
 # 	r = requests.get(f"https://www.linkexpander.com/?url={url}")
 # 	await edit_or_reply(message, r.text, parse_mode=None)
+
+_CONV : Dict[int, dict] = {} # cheap way to keep a history of conversations
+
+@HELP.add(cmd="<text>")
+@alemiBot.on_message(is_allowed & filterCommand(["huggingface", "hgf"], alemiBot.prefixes, options={
+	"model" : ["-m", "--model"],
+	"conversation" : ["-conv", "--conversation"],
+	"question" : ["-ask", "--ask_question"],
+	"summary" : ["-sum", "--summary"],
+	"sentiment" : ["-sent", "--sentiment"],
+	"generate" : ["-gen", "--generate"],
+}))
+@report_error(logger)
+@set_offline
+@cancel_chat_action
+async def huggingface_cmd(client: Client, message: Message):
+	"""will query Huggingface Accelerated Interface API
+
+	Requires an API key in bot config, under [huggingface] ( key = asdasdasd )
+	Will query the Accelerated Interface Api with the provided token.
+	The default model can be specified with `-m`. Default model will change depending on task
+	Some specific tasks are pre-programmed as options:
+	-	Use `-conv` to have a conversation (pass `--reset` as argument to reset ongoing). Defaults to `microsoft/DialoGPT-large`.
+	-	Use `-ask` to make a question, and specify the context inside `()`. Defaults to `deepset/roberta-base-squad2`.
+	-	Use `-sum` to make a summary of given text. Defaults to `facebook/bart-large-cnn`.
+	-	Use `-sent` to get sentiment analysis of text. Defaults to `distilbert-base-uncased-finetuned-sst-2-english`.
+	-	Use `-gen` to generate text starting from input. Defaults to `gpt2`.
+	The API is capable of more tasks (like speech recognition, table searching, zero-shot classification) but \
+	these functionalities are not yet implemented in this command.
+	To access unsupported tasks, raw json input can be passed with no extra options. It will be fed as-is to requested model.
+	If raw json is being passed, default model will be gpt2.
+	"""
+	uid = get_user(message).id
+	url = "https://api-inference.huggingface.co/models/"
+	headers = {"Authorization": f"Bearer api_{alemiBot.config.get('huggingface', 'key', fallback='')}"}
+	
+	if message.command["conversation"]:
+		if message.command["conversation"] == "--reset":
+			_CONV.pop(uid, None)
+			return await edit_or_reply(message, "` → ` Cleared conversation")
+		payload = {"inputs" : _CONV[uid] if uid in _CONV else {}}
+		payload["inputs"]["text"] = message.command["conversation"]
+		model = "microsoft/DialoGPT-large"
+	elif message.command["question"]:
+		question, context = message.command["question"].rsplit("(", 1)
+		context = context.replace(")", "")
+		payload = {"inputs": {"question":question, "context":context}}
+		model = "deepset/roberta-base-squad2"
+	elif message.command["summary"]:
+		payload = {"inputs": message.command["summary"]}
+		model = "facebook/bart-large-cnn"
+	elif message.command["sentiment"]:
+		payload = {"inputs" : message.command["sentiment"]}
+		model = "distilbert-base-uncased-finetuned-sst-2-english"
+	elif message.command["generate"]:
+		payload = {"inputs" : message.command["generate"]}
+		model = "gpt2"
+	else:
+		if not message.command.text:
+			return await edit_or_reply(message, "` → ` No input")
+		payload = json.loads(message.command[0])
+		model = "gpt2"
+
+	if message.command["model"]:
+		model = message.command["model"]
+
+	before = time.time()
+	with ProgressChatAction(client, message.chat.id, action="typing") as prog:
+		async with aiohttp.ClientSession() as sess:
+			async with sess.post(url + model, headers=headers, json=payload) as res:
+				reply = await res.json()
+	inference_time = time.time() - before
+
+	if isinstance(reply, list): # cheap trick, sometimes it comes as list
+		reply = reply[0]
+
+	if "error" in reply:
+		return await edit_or_reply(message, f"` → ` [**{inference_time:.1f}**s] {reply['error']}")
+
+	pre = f"` → ` [**{inference_time:.1f}**s] "
+
+	if message.command["conversation"]:
+		_CONV[uid] = reply["conversation"]
+		await edit_or_reply(message, pre + reply["generated_text"])
+	elif message.command["question"]:
+		await edit_or_reply(message, pre + f'{reply["answer"]} | {reply["score"]:.3f}')
+	elif message.command["summary"]:
+		await edit_or_reply(message, pre + reply["summary_text"])
+	elif message.command["sentiment"]:
+		first, second = reply # really bad trick, couldn't you put it all in one dict????
+		if first["score"] > second["score"]:
+			await edit_or_reply(message, pre + f'{first["label"]} | {first["score"]:.3f}')
+		else:
+			await edit_or_reply(message, pre + f'{second["label"]} | {second["score"]:.3f}')
+	elif message.command["generate"]:
+		await edit_or_reply(message, pre + reply["generated_text"])
+	else:
+		await edit_or_reply(message, pre + tokenize_json(json.dumps(reply, indent=2)))
+

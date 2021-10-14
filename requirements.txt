@@ -1,4 +1,5 @@
 tgcrypto # enough file uploads/downloads to justify requiring this
+aiohttp
 wikipedia-api
 italian-dictionary
 PyDictionary

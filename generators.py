@@ -5,7 +5,6 @@ import os
 import io
 import json
 import time
-import requests
 
 from collections import Counter
 from gtts import gTTS 
