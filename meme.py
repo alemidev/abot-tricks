@@ -68,11 +68,17 @@ async def meme_cmd(client, message):
 		await edit_or_reply(message, out)
 	elif len(message.command) > 0 and (len(message.command) > 1 or message.command[0] != "-delme"):
 		search = re.compile(message.command[0])
+		found = []
 		for meme in os.listdir("plugins/alemibot-tricks/data/meme"):
 			if search.match(meme):
-				return await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + meme, reply_to_message_id=reply_to,
-						caption=f"` → ` **{meme}**")
-		await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
+				found.append(meme)
+		if len(found) > 1:
+			await edit_or_reply(message, "`[!] → ` multiple memes match query\n" + "\n".join(f"`  → ` {meme}" for meme in found))
+		elif len(found) == 1:
+			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + meme, reply_to_message_id=reply_to,
+					caption=f"` → ` **{meme}**")
+		elif len(found) < 1:
+			await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
 	else: 
 		if "batch" in message.command:
 			with ProgressChatAction(client, message.chat.id, action="upload_photo") as prog:
