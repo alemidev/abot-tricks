@@ -379,7 +379,7 @@ async def ocr_cmd(client, message):
 
 _CONV : Dict[int, dict] = {} # cheap way to keep a history of conversations
 
-@HELP.add(cmd="<text>")
+@HELP.add(cmd="[<payload>]")
 @alemiBot.on_message(is_allowed & filterCommand(["huggingface", "hgf"], alemiBot.prefixes, options={
 	"model" : ["-m", "--model"],
 	"conversation" : ["-conv", "--conversation"],
@@ -387,7 +387,7 @@ _CONV : Dict[int, dict] = {} # cheap way to keep a history of conversations
 	"summary" : ["-sum", "--summary"],
 	"sentiment" : ["-sent", "--sentiment"],
 	"generate" : ["-gen", "--generate"],
-}))
+}, flags=["-nowait"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
@@ -407,31 +407,40 @@ async def huggingface_cmd(client: Client, message: Message):
 	these functionalities are not yet implemented in this command.
 	To access unsupported tasks, raw json input can be passed with no extra options. It will be fed as-is to requested model.
 	If raw json is being passed, default model will be gpt2.
+	Will report request time. This will include model load time and net latency. Add flag `-nowait` to fail if the model is not readily available.
 	"""
 	uid = get_user(message).id
 	url = "https://api-inference.huggingface.co/models/"
 	headers = {"Authorization": f"Bearer api_{alemiBot.config.get('huggingface', 'key', fallback='')}"}
 	
+	payload = { "wait_for_model" : True, "inputs" : {} }
+	if message.command["-nowait"]:
+		payload["wait_for_model"] = False
+
 	if message.command["conversation"]:
 		if message.command["conversation"] == "--reset":
 			_CONV.pop(uid, None)
 			return await edit_or_reply(message, "` → ` Cleared conversation")
-		payload = {"inputs" : _CONV[uid] if uid in _CONV else {}}
+		payload["inputs"] = (_CONV[uid] if uid in _CONV else {})
 		payload["inputs"]["text"] = message.command["conversation"]
 		model = "microsoft/DialoGPT-large"
 	elif message.command["question"]:
-		question, context = message.command["question"].rsplit("(", 1)
-		context = context.replace(")", "")
-		payload = {"inputs": {"question":question, "context":context}}
+		if "(" in message.command["question"]:
+			question, context = message.command["question"].rsplit("(", 1)
+			context = context.replace(")", "")
+		else:
+			question = message.command["question"]
+			context = ""
+		payload["inputs"] = {"question":question, "context":context}
 		model = "deepset/roberta-base-squad2"
 	elif message.command["summary"]:
-		payload = {"inputs": message.command["summary"]}
+		payload["inputs"] = message.command["summary"]
 		model = "facebook/bart-large-cnn"
 	elif message.command["sentiment"]:
-		payload = {"inputs" : message.command["sentiment"]}
+		payload["inputs"] = message.command["sentiment"]
 		model = "distilbert-base-uncased-finetuned-sst-2-english"
 	elif message.command["generate"]:
-		payload = {"inputs" : message.command["generate"]}
+		payload["inputs"] = message.command["generate"]
 		model = "gpt2"
 	else:
 		if not message.command.text:
