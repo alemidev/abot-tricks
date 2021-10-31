@@ -75,7 +75,8 @@ async def meme_cmd(client, message):
 		if len(found) > 1:
 			await edit_or_reply(message, "`[!] → ` multiple memes match query\n" + "\n".join(f"`  → ` {meme}" for meme in found))
 		elif len(found) == 1:
-			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + found[0], reply_to_message_id=reply_to,
+			meme = found[0]
+			await send_media(client, message.chat.id, 'plugins/alemibot-tricks/data/meme/' + meme, reply_to_message_id=reply_to,
 					caption=f"` → ` **{meme}**")
 		elif len(found) < 1:
 			await edit_or_reply(message, f"`[!] → ` no meme matching `{message.command[0]}`")
