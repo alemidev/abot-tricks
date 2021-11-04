@@ -280,7 +280,7 @@ async def ascii_cmd(client, message):
 @alemiBot.on_message(is_superuser & filterCommand("pasta", list(alemiBot.prefixes), options={
 	"separator" : ["-s", "-sep"],
 	"interval" : ["-i", "-intrv"]
-}, flags=["-stop", "-mono", "-edit"]))
+}, flags=["-list", "-stop", "-mono", "-edit"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
@@ -288,6 +288,7 @@ async def pasta_cmd(client, message):
 	"""drop a copypasta
 
 	Give copypasta name or path to any file containing long text and bot will drop it in chat.
+	List all saved copypastas with `-list` flag.
 	Use flag `-stop` to stop ongoing pasta.
 	A separator can be specified with `-s` to split the copypasta (for example, at newlines `\\n`).
 	Long messages will still be split in chunks of 4096 characters due to telegram limit.
@@ -299,6 +300,10 @@ async def pasta_cmd(client, message):
 	if message.command["-stop"]:
 		client.ctx.INTERRUPT_PASTA = True
 		return
+	if message.command["-list"]:
+		return await edit_or_reply(message,\
+			"\n".join(f"` → ` {pasta}" for pasta in os.listdir("plugins/alemibot-tricks/data/pasta/"))
+		)
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
 	repl_id = None
