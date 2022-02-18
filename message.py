@@ -40,7 +40,7 @@ async def deleteme(client:alemiBot, message:Message):
 	await message.delete()
 
 def e_pref(): # return escaped bot prefixes, to use in regex
-	return "\\" + "\\".join(list(alemiBot.prefixes))
+	return "\\" + "\\".join(list(alemiBot.config.get('customization', 'prefixes', fallback='./')))
 
 @HELP.add(title="shrug")
 @alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]shrug" % e_pref()), group=2)
