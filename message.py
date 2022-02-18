@@ -39,26 +39,23 @@ async def deleteme(client:alemiBot, message:Message):
 		await asyncio.sleep(float(t))
 	await message.delete()
 
-def e_pref(): # return escaped bot prefixes, to use in regex
-	return "\\" + "\\".join(list(alemiBot.config.get('customization', 'prefixes', fallback='./')))
-
 @HELP.add(title="shrug")
-@alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]shrug" % e_pref()), group=2)
+@alemiBot.on_message(filters.me & filters.regex(pattern=r":shrug:"), group=2)
 async def shrug_replace(client:alemiBot, message:Message):
-	"""will replace ¯\_(ツ)_/¯ anywhere in message"""
-	await message.edit(re.sub(r"[%s]shrug" % e_pref(),"¯\_(ツ)_/¯", message.text.markdown))
+	"""will replace :shrug: ¯\_(ツ)_/¯ anywhere in message (like tdesktop)"""
+	await message.edit(re.sub(r":shrug:","¯\_(ツ)_/¯", message.text.markdown))
 
 @HELP.add(title="eyy")
-@alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]eyy" % e_pref()), group=3)
+@alemiBot.on_message(filters.me & filters.regex(pattern=r":eyy:"), group=3)
 async def eyy_replace(client:alemiBot, message:Message):
-	"""will replace ( ͡° ͜ʖ ͡°) anywhere in message"""
-	await message.edit(re.sub(r"[%s]eyy" % e_pref(),"( ͡° ͜ʖ ͡°)", message.text.markdown))
+	"""will replace :eyy: with ( ͡° ͜ʖ ͡°) anywhere in message"""
+	await message.edit(re.sub(r":eyy:","( ͡° ͜ʖ ͡°)", message.text.markdown))
 
 @HELP.add(title="holup")
-@alemiBot.on_message(filters.me & filters.regex(pattern="[%s]holup" % e_pref()), group=4)
+@alemiBot.on_message(filters.me & filters.regex(pattern=":holup:"), group=4)
 async def holup_replace(client:alemiBot, message:Message):
-	"""will replace (▀̿Ĺ̯▀̿ ̿) anywhere in message"""
-	await message.edit(re.sub(r"[%s]holup" % e_pref(),"(▀̿Ĺ̯▀̿ ̿)", message.text.markdown))
+	"""will replace :holup: with (▀̿Ĺ̯▀̿ ̿) anywhere in message"""
+	await message.edit(re.sub(r":holup:","(▀̿Ĺ̯▀̿ ̿)", message.text.markdown))
 
 @HELP.add(cmd="[<n>]")
 @alemiBot.on_message(sudo & filterCommand(["merge"], options={
