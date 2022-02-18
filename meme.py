@@ -13,16 +13,13 @@ from typing import List
 from pyrogram import filters
 from pyrogram.types import InputMediaPhoto, InputMediaVideo
 
-from bot import alemiBot
+from alemibot import alemiBot
 
-from util import batchify
-from util.permission import is_allowed, is_superuser
-from util.message import ProgressChatAction, edit_or_reply, is_me, send_media
-from util.text import order_suffix
-from util.getters import get_text
-from util.command import filterCommand
-from util.decorators import report_error, set_offline, cancel_chat_action
-from util.help import HelpCategory
+from alemibot.util.command import _Message as Message
+from alemibot.util import (
+	batchify, is_allowed, sudo, ProgressChatAction, edit_or_reply, is_me, send_media,
+	order_suffix, get_text, filterCommand, report_error, set_offline, cancel_chat_action, HelpCategory
+)
 
 import logging
 logger = logging.getLogger(__name__)
@@ -31,13 +28,13 @@ HELP = HelpCategory("MEME")
 INTERRUPT = False
 
 @HELP.add(cmd="[<name>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("meme", list(alemiBot.prefixes), options={
+@alemiBot.on_message(is_allowed & filterCommand("meme", options={
 	"batch" : ["-b"]
 }, flags=["-list", "-stats"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def meme_cmd(client, message):
+async def meme_cmd(client:alemiBot, message:Message):
 	"""get a meme from collection
 
 	If a name was specified, get meme matching requested name (regex). Otherwise, get random meme.
@@ -96,11 +93,11 @@ async def meme_cmd(client, message):
 					caption=f"` → ` [--random--] **{fname}**")
 
 @HELP.add(cmd="<name>")
-@alemiBot.on_message(is_superuser & filterCommand("steal", list(alemiBot.prefixes), flags=["-pasta"]))
+@alemiBot.on_message(sudo & filterCommand("steal", flags=["-pasta"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def steal_cmd(client, message):
+async def steal_cmd(client:alemiBot, message:Message):
 	"""steal a meme
 
 	Save a meme to collection.
@@ -175,13 +172,13 @@ async def fry_image(img: Image) -> Image:
 	return img
 
 @HELP.add(sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("fry", list(alemiBot.prefixes), options={
+@alemiBot.on_message(is_allowed & filterCommand("fry", options={
 	"count" : ["-c", "--count"],
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def deepfry_cmd(client, message):
+async def deepfry_cmd(client:alemiBot, message:Message):
 	"""deepfry an image
 
 	Will deepfry an image (won't add "laser eyes").
@@ -233,21 +230,21 @@ def ascii_image(img:Image, new_width:int=120) -> str:
 
 	# replace each pixel with a character from array
 	chars = ["B","S","#","&","@","$","%","*","!",":","."]
-	new_pixels = [chars[pixel//25] for pixel in pixels]
-	new_pixels = ''.join(new_pixels)
+	new_pixels_list = [chars[pixel//25] for pixel in pixels]
+	new_pixels = ''.join(new_pixels_list)
 
 	# split string of chars into multiple strings of length equal to new width and create a list
 	new_pixels_count = len(new_pixels)
-	ascii_image = [new_pixels[index:index + new_width] for index in range(0, new_pixels_count, new_width)]
-	ascii_image = "\n".join(ascii_image)
+	ascii_image_list = [new_pixels[index:index + new_width] for index in range(0, new_pixels_count, new_width)]
+	ascii_image = "\n".join(ascii_image_list)
 	return ascii_image
 
 @HELP.add(cmd="[<width>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("ascii", list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand("ascii"))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def ascii_cmd(client, message):
+async def ascii_cmd(client:alemiBot, message:Message):
 	"""make ascii art of picture
 
 	Roughly convert a picture into ascii art.
@@ -277,14 +274,14 @@ async def ascii_cmd(client, message):
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
 
 @HELP.add(cmd="<fpath>")
-@alemiBot.on_message(is_superuser & filterCommand("pasta", list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand("pasta", options={
 	"separator" : ["-s", "-sep"],
 	"interval" : ["-i", "-intrv"]
 }, flags=["-list", "-stop", "-mono", "-edit"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def pasta_cmd(client, message):
+async def pasta_cmd(client:alemiBot, message:Message):
 	"""drop a copypasta
 
 	Give copypasta name or path to any file containing long text and bot will drop it in chat.
