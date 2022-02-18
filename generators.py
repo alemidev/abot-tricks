@@ -6,23 +6,22 @@ import io
 import json
 import time
 
-from typing import Dict, List, Any, Union, Tuple, Optional
-
-from pyrogram import filters
-
-from alemibot.bot import alemiBot
-
-from alemibot.util.command import _Message as Message
-from alemibot.util import (
-	is_allowed, ProgressChatAction, edit_or_reply, is_me, get_text, get_username, get_channel, 
-	tokenize_json, cleartermcolor, sep, filterCommand, report_error, set_offline, cancel_chat_action, 
-	HelpCategory
-)
-
 from collections import Counter
 from gtts import gTTS
 from pydub import AudioSegment
 import speech_recognition as sr
+
+from pyrogram import filters
+
+from bot import alemiBot
+
+from util.permission import is_allowed
+from util.message import ProgressChatAction, edit_or_reply, is_me
+from util.getters import get_text, get_username, get_channel
+from util.text import tokenize_json, cleartermcolor, sep
+from util.command import filterCommand
+from util.decorators import report_error, set_offline, cancel_chat_action
+from util.help import HelpCategory
 
 from PIL import Image
 import qrcode
@@ -42,12 +41,12 @@ geolocator = Nominatim(user_agent="telegram-client")
 HELP = HelpCategory("GENERATORS")
 
 @HELP.add(cmd="[<choices>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["rand", "random", "roll"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["rand", "random", "roll"], list(alemiBot.prefixes), options={
 	"batchsize" : ["-n"]
 }))
 @report_error(logger)
 @set_offline
-async def rand_cmd(client:alemiBot, message:Message):
+async def rand_cmd(client, message):
 	"""get random choices
 
 	This can be used as a dice roller (`.roll 3d6`).
@@ -55,7 +54,7 @@ async def rand_cmd(client:alemiBot, message:Message):
 	If a number is given, it will choose a value from 1 to <n>, both included.
 	You can specify how many extractions to make with `-n`.
 	"""
-	res : List[Any] = []
+	res = []
 	times = 1
 	out = ""
 	maxval = None
@@ -100,7 +99,7 @@ async def rand_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["qrcode", "qr"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["qrcode", "qr"], list(alemiBot.prefixes), options={
 	"border" : ["-border"],
 	"size" : ["-size"],
 	"boxsize" : ["-box"],
@@ -110,7 +109,7 @@ async def rand_cmd(client:alemiBot, message:Message):
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def qrcode_cmd(client:alemiBot, message:Message):
+async def qrcode_cmd(client, message):
 	"""generate a qr code
 
 	Make a qr code with given text.
@@ -144,23 +143,23 @@ async def qrcode_cmd(client:alemiBot, message:Message):
 	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.message_id, progress=prog.tick)
 
 @HELP.add(cmd="( <hex> | <r> <g> <b> )", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["color"]))
+@alemiBot.on_message(is_allowed & filterCommand(["color"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def color_cmd(client:alemiBot, message:Message):
+async def color_cmd(client, message):
 	"""send a solid color image
 
 	Create a solid color image and send it.
 	Color can be given as hex or by specifying each channel individally.
 	Each channel can range from 0 to 256.
 	"""
-	clr : Optional[Union[str, Tuple[int, ...]]] = None
+	clr = None
 	if len(message.command) > 0:
 		if len(message.command) > 2:
 			clr = tuple([ int(k) for k in message.command.arg[:3] ])
 		else:
-			clr = str(message.command[0])
+			clr = message.command[0]
 			if not clr.startswith("#"):
 				clr = "#" + clr
 	else:
@@ -175,13 +174,13 @@ async def color_cmd(client:alemiBot, message:Message):
 	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.message_id, progress=prog.tick)
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["voice"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["voice"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }, flags=["-slow", "-mp3", "-file"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def voice_cmd(client:alemiBot, message:Message):
+async def voice_cmd(client, message):
 	"""convert text to voice
 
 	Create a voice message using Google Text to Speech.
@@ -226,12 +225,12 @@ async def voice_cmd(client:alemiBot, message:Message):
 		await client.send_voice(message.chat.id, "data/tts.ogg", progress=prog.tick, **opts)
 
 @HELP.add(cmd="(<lat> <long> | <loc>)", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["loc", "location"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["loc", "location"], list(alemiBot.prefixes), options={
 	"title" : ["-t"]
 }))
 @report_error(logger)
 @set_offline
-async def location_cmd(client:alemiBot, message:Message):
+async def location_cmd(client, message):
 	"""send a location
 
 	Target location can be specified via latitude and longitude (range [-90,90]) or with an address.
@@ -262,13 +261,13 @@ async def location_cmd(client:alemiBot, message:Message):
 		await client.send_location(message.chat.id, latitude, longitude)
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("figlet", options={
+@alemiBot.on_message(is_allowed & filterCommand("figlet", list(alemiBot.prefixes), options={
 	"font" : ["-f", "-font"],
 	"width" : ["-w", "-width"]
 }, flags=["-list", "-rand"]))
 @report_error(logger)
 @set_offline
-async def figlet_cmd(client:alemiBot, message:Message):
+async def figlet_cmd(client, message):
 	"""make a figlet art
 
 	Run figlet and make a text art. You can specify a font (`-f <font>`), or request a random one (`-rand`).
@@ -296,10 +295,10 @@ async def figlet_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, "<code> →\n" + result + "</code>", parse_mode="html")
 
 @HELP.add(sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["fortune"], flags=["-cow"]))
+@alemiBot.on_message(is_allowed & filterCommand(["fortune"], list(alemiBot.prefixes), flags=["-cow"]))
 @report_error(logger)
 @set_offline
-async def fortune_cmd(client:alemiBot, message:Message):
+async def fortune_cmd(client, message):
 	"""do you feel fortuname!?
 
 	Run `fortune` on terminal to get a random sentence. Like fortune bisquits!
@@ -335,10 +334,10 @@ async def check_firefox():
 	return ONCE
 
 @HELP.add(sudo=False, cmd="<url>")
-@alemiBot.on_message(is_allowed & filterCommand(["webshot"], flags=["-raw"]))
+@alemiBot.on_message(is_allowed & filterCommand(["webshot"], list(alemiBot.prefixes), flags=["-raw"]))
 @report_error(logger)
 @set_offline
-async def webshot_cmd(client:alemiBot, message:Message):
+async def webshot_cmd(client, message):
 	"""capture a website screenshot
 
 	Will run headlessly firefox in background to create a screenshot, and then upload it.
@@ -350,8 +349,8 @@ async def webshot_cmd(client:alemiBot, message:Message):
 	if not executable:
 		return await edit_or_reply(message, "`[!] → ` firefox not installed")
 	url = message.command[0]
-	# if requests.head(url).status_code >= 400:
-	# 	return await edit_or_reply(message, "`[!] → ` Invalid URL")
+	if requests.head(url).status_code >= 400:
+		return await edit_or_reply(message, "`[!] → ` Invalid URL")
 	raw = bool(message.command["-raw"])
 	with ProgressChatAction(client, message.chat.id, "upload_document" if raw else "upload_photo") as prog:
 		proc = await asyncio.create_subprocess_exec(
@@ -367,7 +366,7 @@ async def webshot_cmd(client:alemiBot, message:Message):
 			await client.send_photo(message.chat.id, "data/webshot.png", progress=prog.tick, caption=caption)
 
 @HELP.add(cmd="[<n>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["iter_freq"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["iter_freq"], list(alemiBot.prefixes), options={
 	"results" : ["-r", "-res"],
 	"minlen" : ["-min"],
 	"group" : ["-g", "-group"],
@@ -375,7 +374,7 @@ async def webshot_cmd(client:alemiBot, message:Message):
 }))
 @report_error(logger)
 @set_offline
-async def cmd_frequency_iter(client:alemiBot, message:Message):
+async def cmd_frequency_iter(client, message):
 	"""search most frequent words in messages
 
 	**[!]** --This will search with telegram API calls--
@@ -408,10 +407,10 @@ async def cmd_frequency_iter(client:alemiBot, message:Message):
 		if count % 250 == 0:
 			await client.send_chat_action(message.chat.id, "playing")
 			await response.edit(f"` → [{count}/{number}] ` Counting word occurrences...")
-	counter = Counter(words).most_common()
+	count = Counter(words).most_common()
 	from_who = f"(from **{get_username(user)}**)" if user else ""
 	output = f"`→ {get_channel(group)}` {from_who}\n` → ` **{results}** most frequent words __(len > {min_len})__ in last **{number}** messages:\n"
 	for i in range(results):
-		output += f"`{i+1:02d}]{'-'*(results-i-1)}>` `{counter[i][0]}` `({counter[i][1]})`\n"
+		output += f"`{i+1:02d}]{'-'*(results-i-1)}>` `{count[i][0]}` `({count[i][1]})`\n"
 	await response.edit(output, parse_mode="markdown")
 
