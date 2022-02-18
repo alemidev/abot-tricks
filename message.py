@@ -9,17 +9,13 @@ from pyrogram import filters
 from pyrogram.types import InputMediaAnimation, InputMediaDocument, InputMediaAudio, InputMediaVideo, InputMediaPhoto
 from pyrogram.errors import PeerIdInvalid
 
-from bot import alemiBot
+from alemibot import alemiBot
 
-from util import batchify
-from util.permission import is_allowed, is_superuser
-from util.getters import get_username, get_text
-from util.message import ProgressChatAction, edit_or_reply, is_me
-from util.text import split_for_window
-from util.command import filterCommand
-from util.time import parse_timedelta
-from util.decorators import report_error, set_offline, cancel_chat_action
-from util.help import HelpCategory
+from alemibot.util.command import _Message as Message
+from alemibot.util import (
+	batchify, is_allowed, sudo, get_username, get_text, ProgressChatAction, edit_or_reply, is_me, 
+	filterCommand, parse_timedelta, report_error, set_offline, cancel_chat_action, HelpCategory
+)
 
 from zalgo_text import zalgo
 
@@ -31,7 +27,7 @@ HELP = HelpCategory("MESSAGE")
 @alemiBot.on_message(~filters.scheduled & filters.me & filters.regex(pattern=
 	r"(?:.*|)(?:-delme)(?: |)(?P<time>[0-9]+|)$"
 ), group=5)
-async def deleteme(client, message):
+async def deleteme(client:alemiBot, message:Message):
 	"""immediately delete message
 
 	Add `-delme [<time>]` at the end of a message to have it deleted after specified time.
@@ -48,29 +44,29 @@ def e_pref(): # return escaped bot prefixes, to use in regex
 
 @HELP.add(title="shrug")
 @alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]shrug" % e_pref()), group=2)
-async def shrug_replace(client, message):
+async def shrug_replace(client:alemiBot, message:Message):
 	"""will replace ¯\_(ツ)_/¯ anywhere in message"""
 	await message.edit(re.sub(r"[%s]shrug" % e_pref(),"¯\_(ツ)_/¯", message.text.markdown))
 
 @HELP.add(title="eyy")
 @alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]eyy" % e_pref()), group=3)
-async def eyy_replace(client, message):
+async def eyy_replace(client:alemiBot, message:Message):
 	"""will replace ( ͡° ͜ʖ ͡°) anywhere in message"""
 	await message.edit(re.sub(r"[%s]eyy" % e_pref(),"( ͡° ͜ʖ ͡°)", message.text.markdown))
 
 @HELP.add(title="holup")
 @alemiBot.on_message(filters.me & filters.regex(pattern="[%s]holup" % e_pref()), group=4)
-async def holup_replace(client, message):
+async def holup_replace(client:alemiBot, message:Message):
 	"""will replace (▀̿Ĺ̯▀̿ ̿) anywhere in message"""
 	await message.edit(re.sub(r"[%s]holup" % e_pref(),"(▀̿Ĺ̯▀̿ ̿)", message.text.markdown))
 
 @HELP.add(cmd="[<n>]")
-@alemiBot.on_message(is_superuser & filterCommand(["merge"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["merge"], options={
 	"separator" : ["-s", "--separator"],
 }, flags=["-nodel"]))
 @report_error(logger)
 @set_offline
-async def merge_cmd(client, message):
+async def merge_cmd(client:alemiBot, message:Message):
 	"""join multiple messages into one
 
 	Reply to the first one to merge, bot will join	every consecutive message you sent.
@@ -113,11 +109,11 @@ def make_media_group(files):
 		return [ InputMediaDocument(fname) for fname in files ]
 
 @HELP.add(cmd="[<n>]")
-@alemiBot.on_message(is_superuser & filterCommand(["album"], list(alemiBot.prefixes), flags=["-nodel", "-all"]))
+@alemiBot.on_message(sudo & filterCommand(["album"], flags=["-nodel", "-all"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def album_cmd(client, message): # TODO add uploading_file chat action progress
+async def album_cmd(client:alemiBot, message:Message): # TODO add uploading_file chat action progress
 	"""join multiple media into one message
 
 	Send a new album containing last media you sent. Reply to a message to start grouping from that message.
@@ -171,12 +167,12 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<text>")
-@alemiBot.on_message(is_superuser & filterCommand(["slow", "sl"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["slow", "sl"], options={
 		"time" : ["-t"],
 		"batch" : ["-b"]
 }))
 @set_offline
-async def slowtype_cmd(client, message):
+async def slowtype_cmd(client:alemiBot, message:Message):
 	"""make text appear slowly
 
 	Edit message adding batch of characters every time.
@@ -203,14 +199,14 @@ async def slowtype_cmd(client, message):
 	await client.send_chat_action(message.chat.id, "cancel")
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["zalgo"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(is_allowed & filterCommand(["zalgo"], options={
 	"noise" : ["-n", "-noise"],
 	"damage" : ["-d", "-damage"],
 	"max" : ["-max"]
 }))
 @report_error(logger)
 @set_offline
-async def zalgo_cmd(client, message):
+async def zalgo_cmd(client:alemiBot, message:Message):
 	"""h̴͔̣̰̲̣̫̲͉̞͍͖̩͖̭͓̬̼ͫ̈͒̊͟͟͠e̵̙͓̼̻̳̝͍̯͇͕̳̝͂̌͐ͫ̍ͬͨ͑̕ ̷̴̢̛̝̙̼̣̔̎̃ͨ͆̾ͣͦ̑c̵̥̼͖̲͓̖͕̭ͦ̽ͮͮ̇ͭͥ͠o̷̷͔̝̮̩͍͉͚͌̿ͥ̔ͧ̉͛ͭ͊̀͜ͅm̵̸̡̰̭͓̩̥͚͍͎̹͖̠̩͙̯̱͙͈͍͉͂ͩ̄̅͗͞e̢̛͖̪̞̐̒̈̓̒́͒̈́̀ͅṡ̡̢̟͖̩̝̣͙̣͔̑́̓̿̊̑̍̉̓͘͢
 
 	Will completely fuck up the text with 'zalgo' patterns.
@@ -240,10 +236,10 @@ async def zalgo_cmd(client, message):
 		first = False
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["rc", "randomcase"], list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand(["rc", "randomcase"]))
 @report_error(logger)
 @set_offline
-async def randomcase_cmd(client, message):
+async def randomcase_cmd(client:alemiBot, message:Message):
 	"""make text randomly capialized
 
 	Will edit message applying random capitalization to every letter, like the spongebob meme.
@@ -288,9 +284,9 @@ def interval(delta):
 	return 0
 
 @HELP.add(cmd="[<seconds>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["countdown", "cd"], list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand(["countdown", "cd"]))
 @set_offline
-async def countdown_cmd(client, message):
+async def countdown_cmd(client:alemiBot, message:Message):
 	"""count down
 
 	Will edit message to show a countdown. If no time is given, it will be 5s.
