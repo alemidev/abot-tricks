@@ -3,13 +3,14 @@ import asyncio
 
 from pyrogram import filters
 
-from alemibot import alemiBot
+from bot import alemiBot
 
-from alemibot.util.command import _Message as Message
-from alemibot.util import (
-	batchify, is_allowed, ProgressChatAction, edit_or_reply, filterCommand, 
-	report_error, set_offline, cancel_chat_action, HelpCategory
-)
+from util import batchify
+from util.permission import is_allowed
+from util.message import ProgressChatAction, edit_or_reply
+from util.command import filterCommand
+from util.decorators import report_error, set_offline, cancel_chat_action
+from util.help import HelpCategory
 
 import sympy
 from sympy.solvers import solve
@@ -24,11 +25,11 @@ logger = logging.getLogger(__name__)
 HELP = HelpCategory("MATH")
 
 @HELP.add(cmd="<expr>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["expr", "math"], flags=["-latex"]))
+@alemiBot.on_message(is_allowed & filterCommand(["expr", "math"], list(alemiBot.prefixes), flags=["-latex"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def expr_cmd(client:alemiBot, message:Message):
+async def expr_cmd(client, message):
 	"""convert to LaTeX formula
 
 	This command accepts sympy syntax and will generate a LaTeX formula as image.
@@ -47,11 +48,11 @@ async def expr_cmd(client:alemiBot, message:Message):
 									caption=f"` → {expr} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["plot", "graph"], flags=["-3d"]))
+@alemiBot.on_message(is_allowed & filterCommand(["plot", "graph"], list(alemiBot.prefixes), flags=["-3d"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def graph_cmd(client:alemiBot, message:Message):
+async def graph_cmd(client, message):
 	"""plot provided function
 
 	This command will run sympy `plot` and return result as image.
@@ -74,10 +75,10 @@ async def graph_cmd(client:alemiBot, message:Message):
 									caption=f"` → {eq} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("solve", flags=["-simpl"]))
+@alemiBot.on_message(is_allowed & filterCommand("solve", list(alemiBot.prefixes), flags=["-simpl"]))
 @report_error(logger)
 @set_offline
-async def solve_cmd(client:alemiBot, message:Message):
+async def solve_cmd(client, message):
 	"""attempt to solve equation
 
 	This command will run sympy `solve` to find the equation roots.

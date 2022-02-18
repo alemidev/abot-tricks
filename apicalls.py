@@ -4,9 +4,9 @@ import time
 from urllib import parse
 import aiohttp
 
-from typing import Dict, Any
+from typing import Dict
 
-from alemibot import alemiBot
+from bot import alemiBot
 
 import wikipediaapi
 import italian_dictionary
@@ -23,11 +23,14 @@ import speech_recognition as sr
 from pyrogram import Client
 from pyrogram.types import Message
 
-from alemibot.util.command import _Message as Message
-from alemibot.util import (
-	batchify, tokenize_json, sep, get_user, is_allowed, edit_or_reply, ProgressChatAction, filterCommand,
-	report_error, set_offline, cancel_chat_action, HelpCategory
-)
+from util import batchify
+from util.text import tokenize_json, sep
+from util.getters import get_user
+from util.permission import is_allowed
+from util.message import edit_or_reply, ProgressChatAction
+from util.command import filterCommand
+from util.decorators import report_error, set_offline, cancel_chat_action
+from util.help import HelpCategory
 
 import logging
 logger = logging.getLogger(__name__)
@@ -39,10 +42,10 @@ dictionary = PyDictionary()
 UClient = UrbanClient()
 
 @HELP.add(cmd="<val> <from> <to>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["convert", "conv"]))
+@alemiBot.on_message(is_allowed & filterCommand(["convert", "conv"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
-async def convert_cmd(client:alemiBot, message:Message):
+async def convert_cmd(client, message):
 	"""convert various measure units
 
 	Conversion tool. Accepts many units, like `.convert 52 °C °F` \
@@ -54,11 +57,11 @@ async def convert_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, f"` → ` **{res}** {message.command[2]}")
 
 @HELP.add(cmd="<from> [<val>] [<to>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], flags=["-crypto"]))
+@alemiBot.on_message(is_allowed & filterCommand(["currency", "cconvert", "curr"], list(alemiBot.prefixes), flags=["-crypto"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def currency_convert_cmd(client:alemiBot, message:Message):
+async def currency_convert_cmd(client, message):
 	"""convert various currencies
 	
 	Currency price checker and conversion tool. Accept many currency tickers, like `.currency btc` \
@@ -80,20 +83,20 @@ async def currency_convert_cmd(client:alemiBot, message:Message):
 		to_ticker = res["to"]
 		converted_val = float(res["amount"])
 	else:
-		data = cryptocompare.get_price(from_ticker, currency=to_ticker)
-		if not data:
+		res = cryptocompare.get_price(from_ticker, currency=to_ticker)
+		if not res:
 			return await edit_or_reply(message, "`[!] → ` Invalid currency ticker")
 		from_ticker = list(res.keys())[0]
-		to_ticker = list(data[from_ticker].keys())[0]
-		converted_val = val * float(data[from_ticker][to_ticker])
+		to_ticker = list(res[from_ticker].keys())[0]
+		converted_val = val * float(res[from_ticker][to_ticker])
 	await edit_or_reply(message, f"` → ` **{sep(converted_val)}** {to_ticker}")
 
 @HELP.add(cmd="<word>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"]))
+@alemiBot.on_message(is_allowed & filterCommand(["diz", "dizionario"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def diz_cmd(client:alemiBot, message:Message):
+async def diz_cmd(client, message):
 	"""search in italian dictionary
 	
 	Get definition of given word from italian dictionary.
@@ -112,11 +115,11 @@ async def diz_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<word>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["dic", "dictionary"]))
+@alemiBot.on_message(is_allowed & filterCommand(["dic", "dictionary"], list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def dic_cmd(client:alemiBot, message:Message):
+async def dic_cmd(client, message):
 	"""search in english dictionary
 
 	Get definition of given word from English dictionary.
@@ -138,13 +141,13 @@ async def dic_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<query>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["ud", "urban"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["ud", "urban"], list(alemiBot.prefixes), options={
 	"results" : ["-r", "-res"]
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def urbandict_cmd(client:alemiBot, message:Message):
+async def urbandict_cmd(client, message):
 	"""search on urban dictionary
 	
 	Get definition from urban dictionary of given query.
@@ -165,14 +168,14 @@ async def urbandict_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, out, parse_mode="html")
 
 @HELP.add(cmd="<query>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("wiki", options={
+@alemiBot.on_message(is_allowed & filterCommand("wiki", list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"],
 	"limit" : ["-max"]
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def wiki_cmd(client:alemiBot, message:Message):
+async def wiki_cmd(client, message):
 	"""search on wikipedia
 	
 	Search on wikipedia, attaching initial text and a link.
@@ -195,7 +198,7 @@ async def wiki_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(message, f"` → {page.title}`\n{text}\n` → ` {page.fullurl}")
 
 @HELP.add(cmd="[<text>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["translate", "tran", "tr"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["translate", "tran", "tr"], list(alemiBot.prefixes), options={
 	"src" : ["-s", "-src"],
 	"dest" : ["-d", "-dest"],
 # 	"engine" : ["-e", "-engine"]
@@ -203,7 +206,7 @@ async def wiki_cmd(client:alemiBot, message:Message):
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def translate_cmd(client:alemiBot, message:Message): # TODO implement more engines from deep-translator
+async def translate_cmd(client, message): # TODO implement more engines from deep-translator
 	"""translate to/from
 
 	Translate text from a language (autodetected if not specified with `-s`) to another \
@@ -214,7 +217,7 @@ async def translate_cmd(client:alemiBot, message:Message): # TODO implement more
 	"""
 	if len(message.command) < 1 and not message.reply_to_message:
 		return await edit_or_reply(message, "`[!] → ` Nothing to translate")
-	tr_options : Dict[str, Any] = {}
+	tr_options = {}
 	# lmao I can probably pass **args directly
 	source_lang = message.command["src"] or "auto"
 	dest_lang = message.command["dest"] or "en"
@@ -224,10 +227,10 @@ async def translate_cmd(client:alemiBot, message:Message): # TODO implement more
 	await edit_or_reply(message, "` → ` " + out)
 
 @HELP.add(cmd="<query>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand("lmgtfy"))
+@alemiBot.on_message(is_allowed & filterCommand("lmgtfy", list(alemiBot.prefixes)))
 @report_error(logger)
 @set_offline
-async def lmgtfy(client:alemiBot, message:Message):
+async def lmgtfy(client, message):
 	"""let me google that for you
 
 	Generates a `Let Me Google That For You` link
@@ -243,13 +246,13 @@ WTTR_STRING = "`→ {loc} `\n` → `**{desc}**\n` → ` {mintemp:.0f}C - {maxtem
 			  "` → ` pressure **{press}hPa** `|` wind **{wspd}m/s**\n` → ` **{vis}m** visibility (__{cld}% clouded__)"
 
 @HELP.add(cmd="<location>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["weather", "wttr"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["weather", "wttr"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def weather_cmd(client:alemiBot, message:Message):
+async def weather_cmd(client, message):
 	"""get weather of location
 	
 	Makes a request to wttr.in for provided location. Props to https://github.com/chubin/wttr.in \
@@ -282,13 +285,13 @@ async def weather_cmd(client:alemiBot, message:Message):
 	#												  wspd=r["wind"]["speed"], vis=r["visibility"], cld=r["clouds"]["all"]))
 
 @HELP.add(sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["scribe"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["scribe"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def transcribe_cmd(client:alemiBot, message:Message):
+async def transcribe_cmd(client, message):
 	"""transcribes a voice message
 
 	Reply to a voice message to transcribe it. It uses Google Speech Recognition API.
@@ -316,13 +319,13 @@ async def transcribe_cmd(client:alemiBot, message:Message):
 	await edit_or_reply(msg, out)
 
 @HELP.add(sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["ocr"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["ocr"], list(alemiBot.prefixes), options={
 	"lang" : ["-l", "-lang"]
 }, flags=["-overlay", "-json"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def ocr_cmd(client:alemiBot, message:Message):
+async def ocr_cmd(client, message):
 	"""read text in photos
 
 	Make a request to https://api.ocr.space/parse/image. The number of allowed queries \
@@ -351,7 +354,7 @@ async def ocr_cmd(client:alemiBot, message:Message):
 				async with sess.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload) as res:
 					data = await res.json()
 		if message.command["-json"]:
-			raw = tokenize_json(json.dumps(data))
+			raw = tokenize_json(json.dumps(data), indent=2)
 			await edit_or_reply(message, f"` → `\n{raw}")
 		else:
 			out = ""
@@ -364,20 +367,20 @@ async def ocr_cmd(client:alemiBot, message:Message):
 # HELP.add_help(["link"], "expand a reward url",
 # 				"expand given url using `linkexpander.com`.", 
 # 				cmd="<url>", sudo=False)
-# @alemiBot.on_message(is_allowed & filterCommand(["link"]))
+# @alemiBot.on_message(is_allowed & filterCommand(["link"], list(alemiBot.prefixes)))
 # @report_error(logger)
 # @set_offline
-# async def link_expander_cmd(client:alemiBot, message:Message):
+# async def link_expander_cmd(client, message):
 # 	if "arg" not in message.command:
 # 		return await edit_or_reply(message, "`[!] → ` No URL given")
 # 	url = message.command["arg"]
 # 	r = requests.get(f"https://www.linkexpander.com/?url={url}")
 # 	await edit_or_reply(message, r.text, parse_mode=None)
 
-_CONV : Dict[int, Dict[str, str]] = {} # cheap way to keep a history of conversations
+_CONV : Dict[int, dict] = {} # cheap way to keep a history of conversations
 
 @HELP.add(cmd="[<payload>]")
-@alemiBot.on_message(is_allowed & filterCommand(["huggingface", "hgf"], options={
+@alemiBot.on_message(is_allowed & filterCommand(["huggingface", "hgf"], alemiBot.prefixes, options={
 	"model" : ["-m", "--model"],
 	"conversation" : ["-conv", "--conversation"],
 	"question" : ["-ask", "--ask_question"],
@@ -410,7 +413,7 @@ async def huggingface_cmd(client: Client, message: Message):
 	url = "https://api-inference.huggingface.co/models/"
 	headers = {"Authorization": f"Bearer api_{alemiBot.config.get('huggingface', 'key', fallback='')}"}
 	
-	payload : Dict[str, Any] = { "wait_for_model" : True, "inputs" : {} }
+	payload = { "wait_for_model" : True, "inputs" : {} }
 	if message.command["-nowait"]:
 		payload["wait_for_model"] = False
 
