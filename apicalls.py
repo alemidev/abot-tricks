@@ -258,7 +258,7 @@ async def weather_cmd(client:alemiBot, message:Message):
 	"""
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
-	# APIKEY = alemiBot.config.get("weather", "apikey", fallback="")
+	# APIKEY = client.config.get("weather", "apikey", fallback="")
 	# if APIKEY == "":
 	#	  return await edit_or_reply(message, "`[!] → ` No APIKEY provided in config")
 	await client.send_chat_action(message.chat.id, "find_location")
@@ -312,7 +312,7 @@ async def transcribe_cmd(client:alemiBot, message:Message):
 	with voice as source:
 		audio = recognizer.record(source)
 	out = "` → `" + recognizer.recognize_google(audio, language=lang,
-						key=alemiBot.config.get("scribe", "key", fallback=None))
+						key=client.config.get("scribe", "key", fallback=None))
 	await edit_or_reply(msg, out)
 
 @HELP.add(sudo=False)
@@ -334,7 +334,7 @@ async def ocr_cmd(client:alemiBot, message:Message):
 	"""
 	payload = {
 		'isOverlayRequired': bool(message.command["-overlay"]),
-		'apikey': alemiBot.config.get("ocr", "apikey", fallback=""),
+		'apikey': client.config.get("ocr", "apikey", fallback=""),
 		'language': message.command["lang"] or "eng",
 	}
 	if payload["apikey"] == "":
@@ -345,11 +345,11 @@ async def ocr_cmd(client:alemiBot, message:Message):
 	if msg.media:
 		await client.send_chat_action(message.chat.id, "upload_photo")
 		fpath = await client.download_media(msg, file_name="data/ocr")
-		with open(fpath, 'rb') as f:
-			# r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
-			async with aiohttp.ClientSession() as sess:
-				async with sess.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload) as res:
-					data = await res.json()
+		payload['file'] = open(fpath, 'rb')
+		# r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
+		async with aiohttp.ClientSession() as sess:
+			async with sess.post('https://api.ocr.space/parse/image', data=payload) as res:
+				data = await res.json()
 		if message.command["-json"]:
 			raw = tokenize_json(json.dumps(data))
 			await edit_or_reply(message, f"` → `\n{raw}")
@@ -408,7 +408,7 @@ async def huggingface_cmd(client: Client, message: Message):
 	"""
 	uid = get_user(message).id
 	url = "https://api-inference.huggingface.co/models/"
-	headers = {"Authorization": f"Bearer api_{alemiBot.config.get('huggingface', 'key', fallback='')}"}
+	headers = {"Authorization": f"Bearer api_{client.config.get('huggingface', 'key', fallback='')}"}
 	
 	payload : Dict[str, Any] = { "wait_for_model" : True, "inputs" : {} }
 	if message.command["-nowait"]:
