@@ -349,9 +349,9 @@ async def ocr_cmd(client, message):
 		await client.send_chat_action(message.chat.id, "upload_photo")
 		fpath = await client.download_media(msg, file_name="data/ocr")
 		with open(fpath, 'rb') as f:
-			# r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
+			payload['file'] = f
 			async with aiohttp.ClientSession() as sess:
-				async with sess.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload) as res:
+				async with sess.post('https://api.ocr.space/parse/image', data=payload) as res:
 					data = await res.json()
 		if message.command["-json"]:
 			raw = tokenize_json(json.dumps(data), indent=2)
