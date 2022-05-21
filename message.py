@@ -6,6 +6,7 @@ import secrets
 import logging
 
 from pyrogram import filters
+from pyrogram.enums import ChatAction
 from pyrogram.types import InputMediaAnimation, InputMediaDocument, InputMediaAudio, InputMediaVideo, InputMediaPhoto
 from pyrogram.errors import PeerIdInvalid
 
@@ -187,13 +188,13 @@ async def slowtype_cmd(client:alemiBot, message:Message):
 			out += seg
 			if seg.isspace() or seg == "":
 				continue # important because sending same message twice causes an exception
-			await client.send_chat_action(message.chat.id, "typing")
+			await client.send_chat_action(message.chat.id, ChatAction.TYPING)
 			await msg.edit(out, parse_mode=None)
 			await asyncio.sleep(intrv) # does this "start" the coroutine early?
 	except:
 		logger.exception("Error in .slow command")
 		pass # msg was deleted probably
-	await client.send_chat_action(message.chat.id, "cancel")
+	await client.send_chat_action(message.chat.id, ChatAction.CANCEL)
 
 @HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["zalgo"], options={

@@ -9,7 +9,7 @@ import time
 from typing import Dict, List, Any, Union, Tuple, Optional
 
 from pyrogram import filters
-from pyrogram.enums import ParseMode
+from pyrogram.enums import ParseMode, ChatAction
 
 from alemibot.bot import alemiBot
 
@@ -246,9 +246,9 @@ async def location_cmd(client:alemiBot, message:Message):
 		latitude = float(message.command[0])
 		longitude = float(message.command[1])
 	except (ValueError, IndexError):
-		await client.send_chat_action(message.chat.id, "find_location")
+		await client.send_chat_action(message.chat.id, ChatAction.FIND_LOCATION)
 		location = geolocator.geocode(message.command.text)
-		await client.send_chat_action(message.chat.id, "cancel")
+		await client.send_chat_action(message.chat.id, ChatAction.CANCEL)
 		if location is None:
 			return await edit_or_reply(message, "`[!] → ` Not found")
 		latitude = location.latitude
@@ -407,7 +407,7 @@ async def cmd_frequency_iter(client:alemiBot, message:Message):
 			words += [ w for w in re.sub(r"[^0-9a-zA-Z\s\n]+", "", get_text(msg).lower()).split() if len(w) > min_len ]
 		count += 1
 		if count % 250 == 0:
-			await client.send_chat_action(message.chat.id, "playing")
+			await client.send_chat_action(message.chat.id, ChatAction.PLAYING)
 			await response.edit(f"` → [{count}/{number}] ` Counting word occurrences...")
 	counter = Counter(words).most_common()
 	from_who = f"(from **{get_username(user)}**)" if user else ""

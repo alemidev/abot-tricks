@@ -22,6 +22,7 @@ import speech_recognition as sr
 
 from pyrogram import Client
 from pyrogram.types import Message
+from pyrogram.enums import ChatAction, ParseMode
 
 from alemibot.util.command import _Message as Message
 from alemibot.util import (
@@ -68,7 +69,7 @@ async def currency_convert_cmd(client:alemiBot, message:Message):
 	"""
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not enough arguments")
-	await client.send_chat_action(message.chat.id, "choose_contact")
+	await client.send_chat_action(message.chat.id, ChatAction.CHOOSE_CONTACT)
 	val = float(message.command[1] or 1.0)
 	from_ticker = message.command[0]
 	to_ticker = message.command[2] or "USD"
@@ -101,7 +102,7 @@ async def diz_cmd(client:alemiBot, message:Message):
 	"""
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
-	await client.send_chat_action(message.chat.id, "upload_document")
+	await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
 	arg = message.command.text
 	# Use this to get only the meaning 
 	res = italian_dictionary.get_definition(arg) 
@@ -124,7 +125,7 @@ async def dic_cmd(client:alemiBot, message:Message):
 	"""
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
-	await client.send_chat_action(message.chat.id, "upload_document")
+	await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
 	arg = message.command.text
 	res = dictionary.meaning(arg)
 	if res is None:
@@ -154,7 +155,7 @@ async def urbandict_cmd(client:alemiBot, message:Message):
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	n = int(message.command["results"] or 1)
-	await client.send_chat_action(message.chat.id, "upload_document")
+	await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
 	res = UClient.get_definition(message.command.text)
 	if len(res) < 1:
 		return await edit_or_reply(message, "`[!] → ` Not found")
@@ -184,7 +185,7 @@ async def wiki_cmd(client:alemiBot, message:Message):
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	lang = message.command["lang"] or "en"
 	limit = int(message.command["limit"] or 1000)
-	await client.send_chat_action(message.chat.id, "upload_document")
+	await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_DOCUMENT)
 	Wikipedia = wikipediaapi.Wikipedia(lang)
 	page = Wikipedia.page(message.command.text)
 	if not page.exists():
@@ -218,7 +219,7 @@ async def translate_cmd(client:alemiBot, message:Message): # TODO implement more
 	# lmao I can probably pass **args directly
 	source_lang = message.command["src"] or "auto"
 	dest_lang = message.command["dest"] or "en"
-	await client.send_chat_action(message.chat.id, "find_location")
+	await client.send_chat_action(message.chat.id, ChatAction.FIND_LOCATION)
 	q = message.reply_to_message.text if message.reply_to_message is not None else message.command.text
 	out = GoogleTranslator(source=source_lang, target=dest_lang).translate(text=q)
 	await edit_or_reply(message, "` → ` " + out)
@@ -261,7 +262,7 @@ async def weather_cmd(client:alemiBot, message:Message):
 	# APIKEY = client.config.get("weather", "apikey", fallback="")
 	# if APIKEY == "":
 	#	  return await edit_or_reply(message, "`[!] → ` No APIKEY provided in config")
-	await client.send_chat_action(message.chat.id, "find_location")
+	await client.send_chat_action(message.chat.id, ChatAction.FIND_LOCATION)
 	q = message.command.text
 	lang = message.command["lang"] or "en"
 
@@ -296,7 +297,7 @@ async def transcribe_cmd(client:alemiBot, message:Message):
 	If you have an API key, add it to your config under category [scribe] in a field named \"key\".
 	You can specify speech recognition language with `-l` (using `RFC5646` language tag format :`en-US`, `it-IT`, ...)
 	"""
-	await client.send_chat_action(message.chat.id, "record_audio")
+	await client.send_chat_action(message.chat.id, ChatAction.RECORD_AUDIO)
 	msg = await edit_or_reply(message, "`→ ` Working...")
 	path = None
 	lang = message.command["lang"] or "en-US"
@@ -343,7 +344,7 @@ async def ocr_cmd(client:alemiBot, message:Message):
 	if message.reply_to_message is not None:
 		msg = message.reply_to_message
 	if msg.media:
-		await client.send_chat_action(message.chat.id, "upload_photo")
+		await client.send_chat_action(message.chat.id, ChatAction.UPLOAD_AUDIO)
 		fpath = await client.download_media(msg, file_name="data/ocr")
 		payload['file'] = open(fpath, 'rb')
 		# r = requests.post('https://api.ocr.space/parse/image', files={fpath: f}, data=payload)
