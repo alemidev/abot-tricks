@@ -9,6 +9,7 @@ import time
 from typing import Dict, List, Any, Union, Tuple, Optional
 
 from pyrogram import filters
+from pyrogram.enums import ParseMode
 
 from alemibot.bot import alemiBot
 
@@ -141,7 +142,7 @@ async def qrcode_cmd(client:alemiBot, message:Message):
 	qr_io.name = "qrcode.jpg"
 	image.save(qr_io, "JPEG")
 	qr_io.seek(0)
-	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.message_id, progress=prog.tick)
+	await client.send_photo(message.chat.id, qr_io, reply_to_message_id=message.id, progress=prog.tick)
 
 @HELP.add(cmd="( <hex> | <r> <g> <b> )", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["color"]))
@@ -172,7 +173,7 @@ async def color_cmd(client:alemiBot, message:Message):
 	color_io.name = "color.jpg"
 	image.save(color_io, "JPEG")
 	color_io.seek(0)
-	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.message_id, progress=prog.tick)
+	await client.send_photo(message.chat.id, color_io, reply_to_message_id=message.id, progress=prog.tick)
 
 @HELP.add(cmd="<text>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["voice"], options={
@@ -214,9 +215,9 @@ async def voice_cmd(client:alemiBot, message:Message):
 	lang = message.command["lang"] or "en"
 	slow = bool(message.command["-slow"])
 	if message.reply_to_message is not None:
-		opts["reply_to_message_id"] = message.reply_to_message.message_id
+		opts["reply_to_message_id"] = message.reply_to_message.id
 	elif not is_me(message):
-		opts["reply_to_message_id"] = message.message_id
+		opts["reply_to_message_id"] = message.id
 	await prog.tick()
 	gTTS(text=text, lang=lang, slow=slow).save("data/tts.mp3")
 	if message.command["-mp3"]:
@@ -279,7 +280,7 @@ async def figlet_cmd(client:alemiBot, message:Message):
 		msg = f"<code> → </code> <u>Figlet fonts</u> : <b>{len(FIGLET_FONTS)}</b>\n[ "
 		msg += " ".join(FIGLET_FONTS)
 		msg += " ]"
-		return await edit_or_reply(message, msg, parse_mode='html')
+		return await edit_or_reply(message, msg, parse_mode=ParseMode.HTML)
 	if len(message.command) < 1:
 		return await edit_or_reply(message, "`[!] → ` No input")
 
@@ -293,7 +294,7 @@ async def figlet_cmd(client:alemiBot, message:Message):
 			font = f
 
 	result = pyfiglet.figlet_format(message.command.text, font=font, width=width)
-	await edit_or_reply(message, "<code> →\n" + result + "</code>", parse_mode="html")
+	await edit_or_reply(message, "<code> →\n" + result + "</code>", parse_mode=ParseMode.HTML)
 
 @HELP.add(sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand(["fortune"], flags=["-cow"]))
@@ -413,5 +414,5 @@ async def cmd_frequency_iter(client:alemiBot, message:Message):
 	output = f"`→ {get_channel(group)}` {from_who}\n` → ` **{results}** most frequent words __(len > {min_len})__ in last **{number}** messages:\n"
 	for i in range(results):
 		output += f"`{i+1:02d}]{'-'*(results-i-1)}>` `{counter[i][0]}` `({counter[i][1]})`\n"
-	await response.edit(output, parse_mode="markdown")
+	await response.edit(output, parse_mode=ParseMode.MARKDOWN)
 

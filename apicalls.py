@@ -162,7 +162,7 @@ async def urbandict_cmd(client:alemiBot, message:Message):
 	for i in range(min(n, len(res))):
 		out +=  f"<code>→ </code> <u>{res[i].word}</u> <code>[+{res[i].upvotes}|{res[i].downvotes}-]</code>\n" + \
 				f"{res[i].definition}\n\n<i>{res[i].example}</i>\n\n"
-	await edit_or_reply(message, out, parse_mode="html")
+	await edit_or_reply(message, out, parse_mode=ParseMode.HTML)
 
 @HELP.add(cmd="<query>", sudo=False)
 @alemiBot.on_message(is_allowed & filterCommand("wiki", options={
@@ -236,7 +236,7 @@ async def lmgtfy(client:alemiBot, message:Message):
 		return await edit_or_reply(message, "`[!] → ` No query given")
 	arg = parse.quote_plus(message.command.text)
 	await edit_or_reply(message, f"<code> → </code> http://letmegooglethat.com/?q={arg}",
-										disable_web_page_preview=True, parse_mode="html")
+										disable_web_page_preview=True, parse_mode=ParseMode.HTML)
 
 
 WTTR_STRING = "`→ {loc} `\n` → `**{desc}**\n` → ` {mintemp:.0f}C - {maxtemp:.0f}C `|` **{hum}%** humidity\n" + \
@@ -269,7 +269,7 @@ async def weather_cmd(client:alemiBot, message:Message):
 		async with sess.get(f"https://wttr.in/{q}?mnTC0&lang={lang}") as res:
 			text = await res.text()
 
-	await edit_or_reply(message, "<code> → " + text + "</code>", parse_mode="html")
+	await edit_or_reply(message, "<code> → " + text + "</code>", parse_mode=ParseMode.HTML)
 
 	# # Why bother with OpenWeatherMap?
 	# r = requests.get(f'http://api.openweathermap.org/data/2.5/weather?q={q}&APPID={APIKEY}').json()

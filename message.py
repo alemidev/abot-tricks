@@ -76,19 +76,19 @@ async def merge_cmd(client:alemiBot, message:Message):
 		return await edit_or_reply(message, "`[!] → ` No start message given")
 	if not is_me(message.reply_to_message):
 		return await edit_or_reply(message, "`[!] → ` Can't merge message of others")
-	m_id = message.reply_to_message.message_id
+	m_id = message.reply_to_message.id
 	sep = message.command["separator"] or "\n"
 	del_msg = not bool(message.command["-nodel"])
 	max_to_merge = int(message.command[0] or -1)
 	out = ""
 	count = 0
 	async for msg in client.iter_history(message.chat.id, offset_id=m_id, reverse=True):
-		if msg.message_id == message.message_id or not is_me(msg) or msg.media \
+		if msg.id == message.id or not is_me(msg) or msg.media \
 		or msg.reply_to_message or (max_to_merge > 0 and count >= max_to_merge):
 			break
 		out += msg.text.markdown + sep
 		count += 1
-		if del_msg and msg.message_id != m_id: # don't delete the one we want to merge into
+		if del_msg and msg.id != m_id: # don't delete the one we want to merge into
 			await msg.delete()
 	await message.reply_to_message.edit(out)
 	await edit_or_reply(message, f"` → ` Merged {count} messages")
@@ -126,7 +126,7 @@ async def album_cmd(client:alemiBot, message:Message): # TODO add uploading_file
 	prog = ProgressChatAction(client, message.chat.id)
 	opts = {}
 	if message.reply_to_message:
-		opts["offset_id"] = message.reply_to_message.message_id
+		opts["offset_id"] = message.reply_to_message.id
 	files = []
 	msgs = []
 	count = 0

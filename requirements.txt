@@ -2,7 +2,7 @@ tgcrypto # enough file uploads/downloads to justify requiring this
 aiohttp
 wikipedia-api
 italian-dictionary
-PyDictionary
+# PyDictionary
 udpy
 deep-translator
 unit-converter
