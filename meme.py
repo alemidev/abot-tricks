@@ -44,9 +44,9 @@ async def meme_cmd(client:alemiBot, message:Message):
 	Memes can be any filetype.
 	"""
 	batchsize = max(min(int(message.command["batch"] or 10), 10), 2)
-	reply_to = message.message_id
+	reply_to = message.id
 	if is_me(message) and message.reply_to_message is not None:
-		reply_to = message.reply_to_message.message_id
+		reply_to = message.reply_to_message.id
 	if message.command["-stats"]:
 		memenumber = len(os.listdir("plugins/alemibot-tricks/data/meme"))
 		proc_meme = await asyncio.create_subprocess_exec( # ewww this is not cross platform but will do for now
@@ -205,7 +205,7 @@ async def deepfry_cmd(client:alemiBot, message:Message):
 		fried_io.name = "fried.jpg"
 		image.save(fried_io, "JPEG")
 		fried_io.seek(0)
-		await client.send_photo(message.chat.id, fried_io, reply_to_message_id=message.message_id,
+		await client.send_photo(message.chat.id, fried_io, reply_to_message_id=message.id,
 									caption=f"` → Fried {count} time{'s' if count > 1 else ''}`", progress=prog.tick)
 		if message.from_user is not None and message.from_user.is_self:
 			await msg.edit(get_text(message) +
@@ -268,7 +268,7 @@ async def ascii_cmd(client:alemiBot, message:Message):
 		else:
 			out = io.BytesIO(ascii_result.encode('utf-8'))
 			out.name = "ascii.txt"
-			await client.send_document(message.chat.id, out, reply_to_message_id=message.message_id,
+			await client.send_document(message.chat.id, out, reply_to_message_id=message.id,
 										caption=f"` → Made ASCII art `", progress=prog.tick)
 	else:
 		await edit_or_reply(message, "`[!] → ` you need to attach or reply to a file, dummy")
@@ -305,7 +305,7 @@ async def pasta_cmd(client:alemiBot, message:Message):
 		return await edit_or_reply(message, "`[!] → ` No input")
 	repl_id = None
 	if message.reply_to_message:
-		repl_id = message.reply_to_message.message_id
+		repl_id = message.reply_to_message.id
 	sep = message.command["separator"]
 	intrv = float(message.command["interval"] or 1.0)
 	monospace = bool(message.command["-mono"])

@@ -183,7 +183,7 @@ async def screenshot_cmd(client:alemiBot, message:Message):
 	await client.send(
 		SendScreenshotNotification(
 			peer=await client.resolve_peer(message.chat.id),
-			reply_to_msg_id=0 if bool(message.command["-0"]) else message.message_id,
+			reply_to_msg_id=0 if bool(message.command["-0"]) else message.id,
 			random_id=client.rnd_id(),
 		)
 	)
@@ -231,7 +231,7 @@ async def spam(client:alemiBot, message:Message): # TODO start another task so t
 	if scheduled:
 		extra["schedule_date"] = int(time.time() + parse_timedelta(message.command["schedule"]).total_seconds())
 	if message.reply_to_message is not None:
-		extra["reply_to_message_id"] = message.reply_to_message.message_id
+		extra["reply_to_message_id"] = message.reply_to_message.id
 	for i in range(number):
 		msg = await client.send_message(target.id, text, **extra)
 		if scheduled:

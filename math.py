@@ -43,7 +43,7 @@ async def expr_cmd(client:alemiBot, message:Message):
 	else:
 		res = parse_expr(expr)
 		preview(res, viewer='file', filename='expr.png', dvioptions=["-T", "bbox", "-D 300", "--truecolor", "-bg", "Transparent"])
-	await client.send_photo(message.chat.id, "expr.png", reply_to_message_id=message.message_id,
+	await client.send_photo(message.chat.id, "expr.png", reply_to_message_id=message.id,
 									caption=f"` → {expr} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
@@ -70,7 +70,7 @@ async def graph_cmd(client:alemiBot, message:Message):
 	else:
 		plot(*eq, show=False).save("graph.png")
 	
-	await client.send_photo(message.chat.id, "graph.png", reply_to_message_id=message.message_id,
+	await client.send_photo(message.chat.id, "graph.png", reply_to_message_id=message.id,
 									caption=f"` → {eq} `", progress=prog.tick)
 
 @HELP.add(cmd="<expr>", sudo=False)
