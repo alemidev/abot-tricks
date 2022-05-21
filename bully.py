@@ -5,6 +5,7 @@ import json
 import time
 
 from pyrogram import filters
+from pyrogram.enums import ChatAction
 from pyrogram.errors import BadRequest, FloodWait
 from pyrogram.raw.functions.contacts import ResolveUsername
 from pyrogram.raw.functions.messages import SendScreenshotNotification
@@ -99,7 +100,7 @@ async def fake_typing(client, tgt, cycle_n, sleep_t, action, message):
 		await edit_or_reply(message, "` → ` Done")
 	except Exception: # maybe deleted?
 		pass
-	await client.send_chat_action(tgt, "cancel")
+	await client.send_chat_action(tgt, ChatAction.CANCEL)
 
 @HELP.add(cmd="<time>")
 @alemiBot.on_message(sudo & filterCommand("typing", options={
@@ -130,7 +131,7 @@ async def typing_cmd(client:alemiBot, message:Message):
 	interval = float(message.command["interval"] or 4.75)
 	cycles = int(parse_timedelta(message.command[0]).total_seconds() / interval)
 	tgt = message.chat.id
-	action = message.command["action"] or "typing"
+	action = message.command["action"] or ChatAction.TYPING
 	if "target" in message.command:
 		tgt = message.command["target"]
 		if tgt.startswith("@"):
