@@ -38,8 +38,8 @@ async def attack_username(client, message, chat, username, interval, limit):
 				INTERRUPT_STEALER = False
 				return
 			except FloodWait as e:
-				await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [RENAME FLOOD: sleeping {e.x}s]")
-				await asyncio.sleep(e.x)
+				await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [RENAME FLOOD: sleeping {e.value}s]")
+				await asyncio.sleep(e.value)
 			except Exception as e: # Username is invalid or user owns too many channels
 				logger.exception("Error in .username command")
 				await message.edit(f"` → ` Failed claiming --@{username}--\n`[!] → ` " + str(e))
@@ -47,8 +47,8 @@ async def attack_username(client, message, chat, username, interval, limit):
 				INTERRUPT_STEALER = False
 				return
 		except FloodWait as e:
-			await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [LOOKUP FLOOD: sleeping {e.x}s]")
-			await asyncio.sleep(e.x)
+			await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [LOOKUP FLOOD: sleeping {e.value}s]")
+			await asyncio.sleep(e.value)
 		except Exception as e: # Username is invalid or user owns too many channels
 			logger.exception("Error in .username command")
 			await message.edit(f"` → ` Failed claiming --@{username}--\n`[!] → ` " + str(e))
