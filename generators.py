@@ -253,7 +253,7 @@ async def location_cmd(client:alemiBot, message:Message):
 			return await edit_or_reply(message, "`[!] → ` Not found")
 		latitude = location.latitude
 		longitude = location.longitude
-	if latitude > 90 or latitude < -90 or longitude > 90 or longitude < -90:
+	if latitude > 90 or latitude < -90 or longitude > 180 or longitude < -180:
 		return await edit_or_reply(message, "`[!] → ` Invalid coordinates")
 	if "title" in message.command:
 		adr = (message.command.text or f"{latitude:.2f} {longitude:.2f}")
