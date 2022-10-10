@@ -5,19 +5,18 @@ import json
 import time
 
 from pyrogram import filters
+from pyrogram.enums import ChatAction
 from pyrogram.errors import BadRequest, FloodWait
 from pyrogram.raw.functions.contacts import ResolveUsername
 from pyrogram.raw.functions.messages import SendScreenshotNotification
 
-from bot import alemiBot
+from alemibot import alemiBot
 
-from util.permission import is_allowed, is_superuser
-from util.message import is_me, edit_or_reply
-from util.getters import get_username
-from util.command import filterCommand
-from util.time import parse_timedelta
-from util.decorators import report_error, set_offline
-from util.help import HelpCategory
+from alemibot.util.command import _Message as Message
+from alemibot.util import (
+	is_allowed, sudo, is_me, edit_or_reply, get_username, filterCommand, parse_timedelta,
+	report_error, set_offline, HelpCategory
+)
 
 logger = logging.getLogger(__name__)
 
@@ -39,8 +38,8 @@ async def attack_username(client, message, chat, username, interval, limit):
 				INTERRUPT_STEALER = False
 				return
 			except FloodWait as e:
-				await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [RENAME FLOOD: sleeping {e.x}s]")
-				await asyncio.sleep(e.x)
+				await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [RENAME FLOOD: sleeping {e.value}s]")
+				await asyncio.sleep(e.value)
 			except Exception as e: # Username is invalid or user owns too many channels
 				logger.exception("Error in .username command")
 				await message.edit(f"` → ` Failed claiming --@{username}--\n`[!] → ` " + str(e))
@@ -48,8 +47,8 @@ async def attack_username(client, message, chat, username, interval, limit):
 				INTERRUPT_STEALER = False
 				return
 		except FloodWait as e:
-			await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [LOOKUP FLOOD: sleeping {e.x}s]")
-			await asyncio.sleep(e.x)
+			await message.edit(f"` → ` Attempting to claim --@{username}-- (**{attempts}** attempts) [LOOKUP FLOOD: sleeping {e.value}s]")
+			await asyncio.sleep(e.value)
 		except Exception as e: # Username is invalid or user owns too many channels
 			logger.exception("Error in .username command")
 			await message.edit(f"` → ` Failed claiming --@{username}--\n`[!] → ` " + str(e))
@@ -61,13 +60,13 @@ async def attack_username(client, message, chat, username, interval, limit):
 	await client.delete_channel(chat.id)
 
 @HELP.add(cmd="<username>")
-@alemiBot.on_message(is_superuser & filterCommand(["steal_username", "steal_user"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["steal_username", "steal_user"], options={
 	"interval" : ["-i", "-int"],
 	"limit" : ["-lim", "-limit"]
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
-async def steal_username_cmd(client, message):
+async def steal_username_cmd(client:alemiBot, message:Message):
 	"""tries to claim an username
 
 	Will create an empty channel and then attempt to rename it to given username until it succeeds or max time is reached.
@@ -99,19 +98,19 @@ async def fake_typing(client, tgt, cycle_n, sleep_t, action, message):
 		await client.send_chat_action(tgt, action)
 	try:
 		await edit_or_reply(message, "` → ` Done")
-	except: # maybe deleted?
+	except Exception: # maybe deleted?
 		pass
-	await client.send_chat_action(tgt, "cancel")
+	await client.send_chat_action(tgt, ChatAction.CANCEL)
 
 @HELP.add(cmd="<time>")
-@alemiBot.on_message(is_superuser & filterCommand("typing", list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand("typing", options={
 	"target" : ["-t"],
 	"interval" : ["-i"],
 	"action" : ["-a", "-action"]
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
-async def typing_cmd(client, message):
+async def typing_cmd(client:alemiBot, message:Message):
 	"""show typing status in chat
 
 	Makes you show as typing on a certain chat. You can specify an username or a chat/user id. If none is given, it will work in current chat.
@@ -132,7 +131,7 @@ async def typing_cmd(client, message):
 	interval = float(message.command["interval"] or 4.75)
 	cycles = int(parse_timedelta(message.command[0]).total_seconds() / interval)
 	tgt = message.chat.id
-	action = message.command["action"] or "typing"
+	action = message.command["action"] or ChatAction.TYPING
 	if "target" in message.command:
 		tgt = message.command["target"]
 		if tgt.startswith("@"):
@@ -144,10 +143,10 @@ async def typing_cmd(client, message):
 	await edit_or_reply(message, f"` → ` {action} ...")
 
 @HELP.add()
-@alemiBot.on_message(is_superuser & filterCommand("everyone", list(alemiBot.prefixes)))
+@alemiBot.on_message(sudo & filterCommand("everyone"))
 @report_error(logger)
 @set_offline
-async def mass_mention(client, message):
+async def mass_mention(client:alemiBot, message:Message):
 	"""mention everyone in current chat
 
 	Will send messages mentioning every member in current chat.
@@ -171,10 +170,10 @@ async def mass_mention(client, message):
 		await msg.reply(text)
 
 @HELP.add()
-@alemiBot.on_message(filters.private & is_superuser & filterCommand(["ss", "screenshot"], list(alemiBot.prefixes), flags=["-0"]))
+@alemiBot.on_message(filters.private & sudo & filterCommand(["ss", "screenshot"], flags=["-0"]))
 @report_error(logger)
 @set_offline
-async def screenshot_cmd(client, message):
+async def screenshot_cmd(client:alemiBot, message:Message):
 	"""send screenshot notification
 
 	**Only works in private chats!**
@@ -185,14 +184,14 @@ async def screenshot_cmd(client, message):
 	await client.send(
 		SendScreenshotNotification(
 			peer=await client.resolve_peer(message.chat.id),
-			reply_to_msg_id=0 if bool(message.command["-0"]) else message.message_id,
+			reply_to_msg_id=0 if bool(message.command["-0"]) else message.id,
 			random_id=client.rnd_id(),
 		)
 	)
 	await edit_or_reply(message, "` → ` Screenshotted")
 
 @HELP.add(cmd="<text>")
-@alemiBot.on_message(is_superuser & filterCommand(["spam", "flood"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["spam", "flood"], options={
 	"number" : ["-n", "--number"],
 	"interval" : ["-i", "--interval"],
 	"schedule" : ["-s", "--schedule"],
@@ -200,7 +199,7 @@ async def screenshot_cmd(client, message):
 }, flags=["-stop"]))
 @report_error(logger)
 @set_offline
-async def spam(client, message): # TODO start another task so that it doesn't stop from rebooting
+async def spam(client:alemiBot, message:Message): # TODO start another task so that it doesn't stop from rebooting
 	"""pretty self explainatory
 
 	Will send many (`-n`) messages in this chat at a specific (`-i`) interval.
@@ -233,7 +232,7 @@ async def spam(client, message): # TODO start another task so that it doesn't st
 	if scheduled:
 		extra["schedule_date"] = int(time.time() + parse_timedelta(message.command["schedule"]).total_seconds())
 	if message.reply_to_message is not None:
-		extra["reply_to_message_id"] = message.reply_to_message.message_id
+		extra["reply_to_message_id"] = message.reply_to_message.id
 	for i in range(number):
 		msg = await client.send_message(target.id, text, **extra)
 		if scheduled:

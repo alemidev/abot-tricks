@@ -6,20 +6,17 @@ import secrets
 import logging
 
 from pyrogram import filters
+from pyrogram.enums import ChatAction
 from pyrogram.types import InputMediaAnimation, InputMediaDocument, InputMediaAudio, InputMediaVideo, InputMediaPhoto
 from pyrogram.errors import PeerIdInvalid
 
-from bot import alemiBot
+from alemibot import alemiBot
 
-from util import batchify
-from util.permission import is_allowed, is_superuser
-from util.getters import get_username, get_text
-from util.message import ProgressChatAction, edit_or_reply, is_me
-from util.text import split_for_window
-from util.command import filterCommand
-from util.time import parse_timedelta
-from util.decorators import report_error, set_offline, cancel_chat_action
-from util.help import HelpCategory
+from alemibot.util.command import _Message as Message
+from alemibot.util import (
+	batchify, is_allowed, sudo, get_username, get_text, ProgressChatAction, edit_or_reply, is_me, 
+	filterCommand, parse_timedelta, report_error, set_offline, cancel_chat_action, HelpCategory
+)
 
 from zalgo_text import zalgo
 
@@ -31,7 +28,7 @@ HELP = HelpCategory("MESSAGE")
 @alemiBot.on_message(~filters.scheduled & filters.me & filters.regex(pattern=
 	r"(?:.*|)(?:-delme)(?: |)(?P<time>[0-9]+|)$"
 ), group=5)
-async def deleteme(client, message):
+async def deleteme(client:alemiBot, message:Message):
 	"""immediately delete message
 
 	Add `-delme [<time>]` at the end of a message to have it deleted after specified time.
@@ -43,34 +40,31 @@ async def deleteme(client, message):
 		await asyncio.sleep(float(t))
 	await message.delete()
 
-def e_pref(): # return escaped bot prefixes, to use in regex
-	return "\\" + "\\".join(list(alemiBot.prefixes))
-
 @HELP.add(title="shrug")
-@alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]shrug" % e_pref()), group=2)
-async def shrug_replace(client, message):
-	"""will replace ¯\_(ツ)_/¯ anywhere in message"""
-	await message.edit(re.sub(r"[%s]shrug" % e_pref(),"¯\_(ツ)_/¯", message.text.markdown))
+@alemiBot.on_message(filters.me & filters.regex(pattern=r":shrug:"), group=2)
+async def shrug_replace(client:alemiBot, message:Message):
+	"""will replace :shrug: ¯\_(ツ)_/¯ anywhere in message (like tdesktop)"""
+	await message.edit(re.sub(r":shrug:","¯\_(ツ)_/¯", message.text.markdown))
 
 @HELP.add(title="eyy")
-@alemiBot.on_message(filters.me & filters.regex(pattern=r"[%s]eyy" % e_pref()), group=3)
-async def eyy_replace(client, message):
-	"""will replace ( ͡° ͜ʖ ͡°) anywhere in message"""
-	await message.edit(re.sub(r"[%s]eyy" % e_pref(),"( ͡° ͜ʖ ͡°)", message.text.markdown))
+@alemiBot.on_message(filters.me & filters.regex(pattern=r":eyy:"), group=3)
+async def eyy_replace(client:alemiBot, message:Message):
+	"""will replace :eyy: with ( ͡° ͜ʖ ͡°) anywhere in message"""
+	await message.edit(re.sub(r":eyy:","( ͡° ͜ʖ ͡°)", message.text.markdown))
 
 @HELP.add(title="holup")
-@alemiBot.on_message(filters.me & filters.regex(pattern="[%s]holup" % e_pref()), group=4)
-async def holup_replace(client, message):
-	"""will replace (▀̿Ĺ̯▀̿ ̿) anywhere in message"""
-	await message.edit(re.sub(r"[%s]holup" % e_pref(),"(▀̿Ĺ̯▀̿ ̿)", message.text.markdown))
+@alemiBot.on_message(filters.me & filters.regex(pattern=":holup:"), group=4)
+async def holup_replace(client:alemiBot, message:Message):
+	"""will replace :holup: with (▀̿Ĺ̯▀̿ ̿) anywhere in message"""
+	await message.edit(re.sub(r":holup:","(▀̿Ĺ̯▀̿ ̿)", message.text.markdown))
 
 @HELP.add(cmd="[<n>]")
-@alemiBot.on_message(is_superuser & filterCommand(["merge"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["merge"], options={
 	"separator" : ["-s", "--separator"],
 }, flags=["-nodel"]))
 @report_error(logger)
 @set_offline
-async def merge_cmd(client, message):
+async def merge_cmd(client:alemiBot, message:Message):
 	"""join multiple messages into one
 
 	Reply to the first one to merge, bot will join	every consecutive message you sent.
@@ -83,19 +77,19 @@ async def merge_cmd(client, message):
 		return await edit_or_reply(message, "`[!] → ` No start message given")
 	if not is_me(message.reply_to_message):
 		return await edit_or_reply(message, "`[!] → ` Can't merge message of others")
-	m_id = message.reply_to_message.message_id
+	m_id = message.reply_to_message.id
 	sep = message.command["separator"] or "\n"
 	del_msg = not bool(message.command["-nodel"])
 	max_to_merge = int(message.command[0] or -1)
 	out = ""
 	count = 0
 	async for msg in client.iter_history(message.chat.id, offset_id=m_id, reverse=True):
-		if msg.message_id == message.message_id or not is_me(msg) or msg.media \
+		if msg.id == message.id or not is_me(msg) or msg.media \
 		or msg.reply_to_message or (max_to_merge > 0 and count >= max_to_merge):
 			break
 		out += msg.text.markdown + sep
 		count += 1
-		if del_msg and msg.message_id != m_id: # don't delete the one we want to merge into
+		if del_msg and msg.id != m_id: # don't delete the one we want to merge into
 			await msg.delete()
 	await message.reply_to_message.edit(out)
 	await edit_or_reply(message, f"` → ` Merged {count} messages")
@@ -113,11 +107,11 @@ def make_media_group(files):
 		return [ InputMediaDocument(fname) for fname in files ]
 
 @HELP.add(cmd="[<n>]")
-@alemiBot.on_message(is_superuser & filterCommand(["album"], list(alemiBot.prefixes), flags=["-nodel", "-all"]))
+@alemiBot.on_message(sudo & filterCommand(["album"], flags=["-nodel", "-all"]))
 @report_error(logger)
 @set_offline
 @cancel_chat_action
-async def album_cmd(client, message): # TODO add uploading_file chat action progress
+async def album_cmd(client:alemiBot, message:Message): # TODO add uploading_file chat action progress
 	"""join multiple media into one message
 
 	Send a new album containing last media you sent. Reply to a message to start grouping from that message.
@@ -133,7 +127,7 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	prog = ProgressChatAction(client, message.chat.id)
 	opts = {}
 	if message.reply_to_message:
-		opts["offset_id"] = message.reply_to_message.message_id
+		opts["offset_id"] = message.reply_to_message.id
 	files = []
 	msgs = []
 	count = 0
@@ -171,12 +165,12 @@ async def album_cmd(client, message): # TODO add uploading_file chat action prog
 	await edit_or_reply(message, out)
 
 @HELP.add(cmd="<text>")
-@alemiBot.on_message(is_superuser & filterCommand(["slow", "sl"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(sudo & filterCommand(["slow", "sl"], options={
 		"time" : ["-t"],
 		"batch" : ["-b"]
 }))
 @set_offline
-async def slowtype_cmd(client, message):
+async def slowtype_cmd(client:alemiBot, message:Message):
 	"""make text appear slowly
 
 	Edit message adding batch of characters every time.
@@ -194,23 +188,23 @@ async def slowtype_cmd(client, message):
 			out += seg
 			if seg.isspace() or seg == "":
 				continue # important because sending same message twice causes an exception
-			await client.send_chat_action(message.chat.id, "typing")
+			await client.send_chat_action(message.chat.id, ChatAction.TYPING)
 			await msg.edit(out, parse_mode=None)
 			await asyncio.sleep(intrv) # does this "start" the coroutine early?
 	except:
 		logger.exception("Error in .slow command")
 		pass # msg was deleted probably
-	await client.send_chat_action(message.chat.id, "cancel")
+	await client.send_chat_action(message.chat.id, ChatAction.CANCEL)
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["zalgo"], list(alemiBot.prefixes), options={
+@alemiBot.on_message(is_allowed & filterCommand(["zalgo"], options={
 	"noise" : ["-n", "-noise"],
 	"damage" : ["-d", "-damage"],
 	"max" : ["-max"]
 }))
 @report_error(logger)
 @set_offline
-async def zalgo_cmd(client, message):
+async def zalgo_cmd(client:alemiBot, message:Message):
 	"""h̴͔̣̰̲̣̫̲͉̞͍͖̩͖̭͓̬̼ͫ̈͒̊͟͟͠e̵̙͓̼̻̳̝͍̯͇͕̳̝͂̌͐ͫ̍ͬͨ͑̕ ̷̴̢̛̝̙̼̣̔̎̃ͨ͆̾ͣͦ̑c̵̥̼͖̲͓̖͕̭ͦ̽ͮͮ̇ͭͥ͠o̷̷͔̝̮̩͍͉͚͌̿ͥ̔ͧ̉͛ͭ͊̀͜ͅm̵̸̡̰̭͓̩̥͚͍͎̹͖̠̩͙̯̱͙͈͍͉͂ͩ̄̅͗͞e̢̛͖̪̞̐̒̈̓̒́͒̈́̀ͅṡ̡̢̟͖̩̝̣͙̣͔̑́̓̿̊̑̍̉̓͘͢
 
 	Will completely fuck up the text with 'zalgo' patterns.
@@ -240,10 +234,10 @@ async def zalgo_cmd(client, message):
 		first = False
 
 @HELP.add(cmd="<text>", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["rc", "randomcase"], list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand(["rc", "randomcase"]))
 @report_error(logger)
 @set_offline
-async def randomcase_cmd(client, message):
+async def randomcase_cmd(client:alemiBot, message:Message):
 	"""make text randomly capialized
 
 	Will edit message applying random capitalization to every letter, like the spongebob meme.
@@ -288,9 +282,9 @@ def interval(delta):
 	return 0
 
 @HELP.add(cmd="[<seconds>]", sudo=False)
-@alemiBot.on_message(is_allowed & filterCommand(["countdown", "cd"], list(alemiBot.prefixes)))
+@alemiBot.on_message(is_allowed & filterCommand(["countdown", "cd"]))
 @set_offline
-async def countdown_cmd(client, message):
+async def countdown_cmd(client:alemiBot, message:Message):
 	"""count down
 
 	Will edit message to show a countdown. If no time is given, it will be 5s.
